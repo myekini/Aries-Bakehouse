@@ -1,0 +1,14 @@
+import { createClient } from '@supabase/supabase-js';
+
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!url || !anonKey) {
+  // Fail loudly at startup rather than letting every query fail later with
+  // an opaque network error — this is almost always a missing .env.local.
+  throw new Error(
+    'Missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY. Copy .env.example to .env.local and fill in your Supabase project values.',
+  );
+}
+
+export const supabase = createClient(url, anonKey);

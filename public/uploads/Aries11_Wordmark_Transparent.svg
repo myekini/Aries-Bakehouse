@@ -1,0 +1,430 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="681.12pt" height="188.928pt" viewBox="0 0 681.12 188.928" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-07-23T02:14:17.995409</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 188.928 
+L 681.12 188.928 
+L 681.12 0 
+L 0 0 
+L 0 188.928 
+z
+" style="fill: none; opacity: 0"/>
+  </g>
+  <g id="axes_1">
+   <g id="text_1">
+    <!-- Aries 11 -->
+    <g style="fill: #2b140f" transform="translate(242.060937 90.24912) scale(0.68 -0.68)">
+     <defs>
+      <path id="LobsterTwo-BoldItalic-41" d="M 3117 0 
+L 4122 4710 
+C 3968 4774 3757 4800 3629 4800 
+C 2867 4800 2035 3936 1389 2912 
+C 1254 2925 1133 2931 1043 2931 
+C 307 2931 -250 2579 -250 2144 
+C -250 1894 -70 1773 147 1773 
+C 346 1773 506 1869 506 2022 
+C 506 2112 454 2221 422 2221 
+C 506 2438 774 2528 1171 2554 
+C 614 1574 230 525 230 -51 
+C 230 -717 742 -730 1088 -730 
+C 1050 -672 998 -589 998 -346 
+C 998 301 1350 1510 1830 2554 
+C 2112 2528 2362 2470 2688 2323 
+L 2195 0 
+L 3117 0 
+z
+M 2746 2605 
+C 2496 2707 2227 2778 1965 2829 
+C 2323 3546 2733 4141 3117 4346 
+L 2746 2605 
+z
+" transform="scale(0.015625)"/>
+      <path id="LobsterTwo-BoldItalic-72" d="M 544 3200 
+L -134 0 
+L 787 0 
+L 1299 2432 
+C 1466 2586 1606 2688 1766 2688 
+C 1958 2688 1779 2285 2138 2285 
+C 2451 2285 2598 2528 2598 2752 
+C 2598 2995 2445 3232 2157 3232 
+C 1901 3232 1619 3034 1376 2797 
+L 1466 3200 
+L 544 3200 
+z
+" transform="scale(0.015625)"/>
+      <path id="LobsterTwo-BoldItalic-69" d="M 672 4051 
+C 672 3770 896 3546 1178 3546 
+C 1459 3546 1690 3770 1690 4051 
+C 1690 4333 1459 4563 1178 4563 
+C 896 4563 672 4333 672 4051 
+z
+M 544 3200 
+L 109 1146 
+C 77 992 58 851 58 730 
+C 58 192 358 -38 742 -38 
+C 1088 -38 1722 102 2086 1146 
+L 1818 1146 
+C 1722 826 1491 582 1242 582 
+C 1062 582 979 640 979 819 
+C 979 877 986 941 1005 1024 
+L 1466 3200 
+L 544 3200 
+z
+" transform="scale(0.015625)"/>
+      <path id="LobsterTwo-BoldItalic-65" d="M 973 1037 
+C 973 1114 979 1203 986 1293 
+C 1754 1338 2458 1894 2458 2618 
+C 2458 2938 2323 3232 1754 3232 
+C 442 3232 26 1709 26 979 
+C 26 256 422 -38 1024 -38 
+C 1875 -38 2419 557 2784 1146 
+L 2566 1146 
+C 2246 781 1939 499 1434 499 
+C 1126 499 973 602 973 1037 
+z
+M 1965 2630 
+C 1965 2112 1536 1632 1037 1600 
+C 1171 2227 1485 2893 1805 2893 
+C 1926 2893 1965 2790 1965 2630 
+z
+" transform="scale(0.015625)"/>
+      <path id="LobsterTwo-BoldItalic-73" d="M 2554 1146 
+C 2432 1043 2266 928 2093 826 
+C 2112 902 2118 979 2118 1069 
+C 2118 1491 2054 1741 1978 3398 
+L 1030 3270 
+C 832 2643 602 2010 243 1376 
+C 64 1293 -96 1075 -96 781 
+C -96 390 186 -38 838 -38 
+C 1165 -38 1574 64 1843 346 
+C 2138 518 2490 762 2822 1146 
+L 2554 1146 
+z
+M 698 1146 
+C 698 1254 634 1331 550 1370 
+C 762 1779 941 2163 1069 2579 
+C 1133 1594 1190 1395 1190 1062 
+C 1190 614 915 467 634 467 
+C 352 467 243 614 243 915 
+C 275 851 352 832 416 832 
+C 582 832 698 992 698 1146 
+z
+" transform="scale(0.015625)"/>
+      <path id="LobsterTwo-BoldItalic-20" transform="scale(0.015625)"/>
+      <path id="LobsterTwo-BoldItalic-31" d="M 2227 4787 
+C 1453 4326 954 4288 602 4288 
+L 486 3827 
+L 1094 3827 
+L 288 0 
+L 1210 0 
+L 2227 4787 
+z
+" transform="scale(0.015625)"/>
+     </defs>
+     <use xlink:href="#LobsterTwo-BoldItalic-41"/>
+     <use xlink:href="#LobsterTwo-BoldItalic-72" transform="translate(60.299988 0)"/>
+     <use xlink:href="#LobsterTwo-BoldItalic-69" transform="translate(97.899979 0)"/>
+     <use xlink:href="#LobsterTwo-BoldItalic-65" transform="translate(124.599976 0)"/>
+     <use xlink:href="#LobsterTwo-BoldItalic-73" transform="translate(162.999969 0)"/>
+     <use xlink:href="#LobsterTwo-BoldItalic-20" transform="translate(201.199966 0)"/>
+     <use xlink:href="#LobsterTwo-BoldItalic-31" transform="translate(222.699951 0)"/>
+     <use xlink:href="#LobsterTwo-BoldItalic-31" transform="translate(256.199936 0)"/>
+    </g>
+   </g>
+   <g id="text_2">
+    <!-- B  A  K  E  H  O  U  S  E -->
+    <g style="fill: #2b140f" transform="translate(243.317109 151.743524) scale(0.19 -0.19)">
+     <defs>
+      <path id="Lato-Light-42" d="M 2134 262 
+Q 2730 262 3035 520 
+Q 3341 778 3341 1245 
+Q 3341 1459 3259 1630 
+Q 3178 1802 3024 1922 
+Q 2870 2042 2646 2106 
+Q 2422 2170 2138 2170 
+L 998 2170 
+L 998 262 
+L 2134 262 
+z
+M 998 4269 
+L 998 2410 
+L 1978 2410 
+Q 2291 2410 2513 2490 
+Q 2736 2570 2878 2701 
+Q 3021 2832 3088 2998 
+Q 3155 3165 3155 3341 
+Q 3155 3798 2865 4033 
+Q 2576 4269 1971 4269 
+L 998 4269 
+z
+M 1971 4528 
+Q 2358 4528 2643 4451 
+Q 2928 4374 3113 4225 
+Q 3299 4077 3388 3862 
+Q 3478 3648 3478 3376 
+Q 3478 3197 3416 3030 
+Q 3354 2864 3237 2723 
+Q 3120 2582 2949 2478 
+Q 2778 2374 2557 2320 
+Q 3091 2243 3377 1966 
+Q 3664 1690 3664 1238 
+Q 3664 950 3561 720 
+Q 3459 490 3264 330 
+Q 3069 170 2784 85 
+Q 2499 0 2138 0 
+L 669 0 
+L 669 4528 
+L 1971 4528 
+z
+" transform="scale(0.015625)"/>
+      <path id="Lato-Light-20" transform="scale(0.015625)"/>
+      <path id="Lato-Light-41" d="M 3110 1645 
+L 2189 3933 
+Q 2141 4045 2096 4202 
+Q 2077 4125 2054 4056 
+Q 2032 3987 2006 3930 
+L 1085 1645 
+L 3110 1645 
+z
+M 4112 0 
+L 3859 0 
+Q 3814 0 3785 24 
+Q 3757 48 3741 86 
+L 3210 1402 
+L 986 1402 
+L 454 86 
+Q 442 51 410 25 
+Q 378 0 333 0 
+L 83 0 
+L 1936 4528 
+L 2259 4528 
+L 4112 0 
+z
+" transform="scale(0.015625)"/>
+      <path id="Lato-Light-4b" d="M 998 2438 
+L 1267 2438 
+Q 1328 2438 1373 2443 
+Q 1418 2448 1454 2461 
+Q 1491 2474 1521 2498 
+Q 1552 2522 1587 2557 
+L 3414 4435 
+Q 3462 4490 3508 4509 
+Q 3555 4528 3619 4528 
+L 3882 4528 
+L 1904 2496 
+Q 1843 2432 1796 2397 
+Q 1750 2362 1693 2339 
+Q 1760 2320 1814 2280 
+Q 1869 2240 1923 2176 
+L 4006 0 
+L 3741 0 
+Q 3658 0 3621 21 
+Q 3584 42 3549 86 
+L 1635 2045 
+Q 1600 2080 1569 2105 
+Q 1539 2131 1502 2148 
+Q 1466 2166 1416 2174 
+Q 1366 2182 1290 2182 
+L 998 2182 
+L 998 0 
+L 669 0 
+L 669 4528 
+L 998 4528 
+L 998 2438 
+z
+" transform="scale(0.015625)"/>
+      <path id="Lato-Light-45" d="M 3389 272 
+L 3382 0 
+L 669 0 
+L 669 4528 
+L 3382 4528 
+L 3382 4256 
+L 998 4256 
+L 998 2426 
+L 2982 2426 
+L 2982 2160 
+L 998 2160 
+L 998 272 
+L 3389 272 
+z
+" transform="scale(0.015625)"/>
+      <path id="Lato-Light-48" d="M 4163 4528 
+L 4163 0 
+L 3834 0 
+L 3834 2170 
+L 998 2170 
+L 998 0 
+L 669 0 
+L 669 4528 
+L 998 4528 
+L 998 2416 
+L 3834 2416 
+L 3834 4528 
+L 4163 4528 
+z
+" transform="scale(0.015625)"/>
+      <path id="Lato-Light-4f" d="M 4691 2266 
+Q 4691 1741 4534 1313 
+Q 4378 886 4093 584 
+Q 3808 282 3409 117 
+Q 3011 -48 2531 -48 
+Q 2051 -48 1654 117 
+Q 1258 282 973 584 
+Q 688 886 531 1313 
+Q 374 1741 374 2266 
+Q 374 2787 531 3214 
+Q 688 3642 973 3944 
+Q 1258 4246 1654 4412 
+Q 2051 4579 2531 4579 
+Q 3011 4579 3409 4414 
+Q 3808 4250 4093 3946 
+Q 4378 3642 4534 3214 
+Q 4691 2787 4691 2266 
+z
+M 4352 2266 
+Q 4352 2739 4221 3116 
+Q 4090 3494 3850 3756 
+Q 3610 4019 3274 4158 
+Q 2938 4298 2531 4298 
+Q 2128 4298 1792 4158 
+Q 1456 4019 1214 3756 
+Q 973 3494 840 3116 
+Q 707 2739 707 2266 
+Q 707 1789 840 1413 
+Q 973 1037 1214 774 
+Q 1456 512 1792 374 
+Q 2128 237 2531 237 
+Q 2938 237 3274 374 
+Q 3610 512 3850 774 
+Q 4090 1037 4221 1413 
+Q 4352 1789 4352 2266 
+z
+" transform="scale(0.015625)"/>
+      <path id="Lato-Light-55" d="M 2326 234 
+Q 2653 234 2910 347 
+Q 3168 461 3347 662 
+Q 3526 864 3620 1137 
+Q 3715 1411 3715 1728 
+L 3715 4528 
+L 4042 4528 
+L 4042 1728 
+Q 4042 1354 3923 1029 
+Q 3805 704 3582 462 
+Q 3360 221 3041 83 
+Q 2723 -54 2326 -54 
+Q 1930 -54 1611 83 
+Q 1293 221 1070 462 
+Q 848 704 729 1029 
+Q 611 1354 611 1728 
+L 611 4528 
+L 941 4528 
+L 941 1731 
+Q 941 1414 1035 1140 
+Q 1130 867 1307 665 
+Q 1485 464 1742 349 
+Q 2000 234 2326 234 
+z
+" transform="scale(0.015625)"/>
+      <path id="Lato-Light-53" d="M 2867 3978 
+Q 2838 3923 2784 3923 
+Q 2742 3923 2676 3982 
+Q 2611 4042 2499 4114 
+Q 2387 4186 2219 4246 
+Q 2051 4307 1805 4307 
+Q 1558 4307 1371 4236 
+Q 1184 4166 1057 4044 
+Q 931 3923 865 3763 
+Q 800 3603 800 3427 
+Q 800 3197 897 3046 
+Q 995 2896 1155 2790 
+Q 1315 2685 1518 2613 
+Q 1722 2541 1936 2470 
+Q 2150 2400 2353 2315 
+Q 2557 2230 2717 2102 
+Q 2877 1974 2974 1787 
+Q 3072 1600 3072 1322 
+Q 3072 1037 2974 785 
+Q 2877 534 2691 348 
+Q 2506 163 2237 56 
+Q 1968 -51 1622 -51 
+Q 1174 -51 851 107 
+Q 528 266 285 541 
+L 374 682 
+Q 413 730 464 730 
+Q 493 730 537 691 
+Q 582 653 646 597 
+Q 710 541 800 475 
+Q 890 410 1008 354 
+Q 1126 298 1280 259 
+Q 1434 221 1629 221 
+Q 1898 221 2109 302 
+Q 2320 384 2465 525 
+Q 2611 666 2688 859 
+Q 2765 1053 2765 1274 
+Q 2765 1514 2667 1669 
+Q 2570 1824 2410 1928 
+Q 2250 2032 2046 2102 
+Q 1843 2173 1628 2240 
+Q 1414 2307 1211 2390 
+Q 1008 2474 848 2603 
+Q 688 2733 590 2926 
+Q 493 3120 493 3411 
+Q 493 3638 579 3849 
+Q 666 4061 832 4222 
+Q 998 4384 1243 4481 
+Q 1488 4579 1802 4579 
+Q 2154 4579 2434 4467 
+Q 2714 4355 2944 4125 
+L 2867 3978 
+z
+" transform="scale(0.015625)"/>
+     </defs>
+     <use xlink:href="#Lato-Light-42"/>
+     <use xlink:href="#Lato-Light-20" transform="translate(63.200012 0)"/>
+     <use xlink:href="#Lato-Light-20" transform="translate(90.350006 0)"/>
+     <use xlink:href="#Lato-Light-41" transform="translate(117.5 0)"/>
+     <use xlink:href="#Lato-Light-20" transform="translate(183.050003 0)"/>
+     <use xlink:href="#Lato-Light-20" transform="translate(210.199997 0)"/>
+     <use xlink:href="#Lato-Light-4b" transform="translate(237.349991 0)"/>
+     <use xlink:href="#Lato-Light-20" transform="translate(300.850006 0)"/>
+     <use xlink:href="#Lato-Light-20" transform="translate(328 0)"/>
+     <use xlink:href="#Lato-Light-45" transform="translate(355.149994 0)"/>
+     <use xlink:href="#Lato-Light-20" transform="translate(413.149994 0)"/>
+     <use xlink:href="#Lato-Light-20" transform="translate(440.299988 0)"/>
+     <use xlink:href="#Lato-Light-48" transform="translate(467.449982 0)"/>
+     <use xlink:href="#Lato-Light-20" transform="translate(542.949997 0)"/>
+     <use xlink:href="#Lato-Light-20" transform="translate(570.099991 0)"/>
+     <use xlink:href="#Lato-Light-4f" transform="translate(597.249985 0)"/>
+     <use xlink:href="#Lato-Light-20" transform="translate(676.399994 0)"/>
+     <use xlink:href="#Lato-Light-20" transform="translate(703.549988 0)"/>
+     <use xlink:href="#Lato-Light-55" transform="translate(730.699982 0)"/>
+     <use xlink:href="#Lato-Light-20" transform="translate(803.399994 0)"/>
+     <use xlink:href="#Lato-Light-20" transform="translate(830.549988 0)"/>
+     <use xlink:href="#Lato-Light-53" transform="translate(857.699982 0)"/>
+     <use xlink:href="#Lato-Light-20" transform="translate(911.199982 0)"/>
+     <use xlink:href="#Lato-Light-20" transform="translate(938.349976 0)"/>
+     <use xlink:href="#Lato-Light-45" transform="translate(965.499969 0)"/>
+    </g>
+   </g>
+  </g>
+ </g>
+</svg>

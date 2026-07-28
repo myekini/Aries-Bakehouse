@@ -1,0 +1,15 @@
+node_modules/
+.next/
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+
+# Machine-local AI-tool hook configs (absolute paths, not portable)
+.codex/
+.cursor/
+
+# Design source/reference material — not served by the app. The runtime
+# uses curated copies in public/uploads.
+brand/

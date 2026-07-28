@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-28T00:00:00Z",
+  "title": "Design System: Aries 11 Bakehouse",
+  "extensions": {
+    "colorMeta": {
+      "cream": { "role": "neutral", "displayName": "Cream", "canonical": "#F5EBD6" },
+      "white": { "role": "neutral", "displayName": "Card White", "canonical": "#FFFDF8" },
+      "choc": { "role": "primary", "displayName": "Deep Chocolate", "canonical": "#2B140F" },
+      "cocoa": { "role": "secondary", "displayName": "Warm Cocoa", "canonical": "#684234" },
+      "olive": { "role": "secondary", "displayName": "Bakehouse Olive", "canonical": "#69704A" },
+      "caramel": { "role": "tertiary", "displayName": "Caramel", "canonical": "#B9804A" },
+      "border": { "role": "neutral", "displayName": "Hairline Border", "canonical": "#D8CBBE" },
+      "whatsapp": { "role": "accent", "displayName": "WhatsApp Green", "canonical": "#25D366" },
+      "error": { "role": "neutral", "displayName": "Error Brick", "canonical": "#93412E" },
+      "text-muted": { "role": "neutral", "displayName": "Muted Text", "canonical": "#5c443f" },
+      "text-faint": { "role": "neutral", "displayName": "Faint Text", "canonical": "#8a7368" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display (Cormorant italic)", "purpose": "Rare accent phrases only — one per screen." },
+      "headline": { "displayName": "Headline", "purpose": "Page titles, DM Sans 800." },
+      "body": { "displayName": "Body", "purpose": "Default paragraph and UI text." },
+      "label": { "displayName": "Label", "purpose": "Uppercase section eyebrows, 12px 800 letter-spaced." }
+    },
+    "shadows": [
+      { "name": "card-ambient", "value": "0 2px 6px rgba(50,26,23,0.08)", "purpose": "Default and only shadow for .card surfaces." },
+      { "name": "sticky-lift", "value": "0 -12px 28px rgba(50,26,23,0.14)", "purpose": "Mobile bottom sticky action bar only, paired with a 10px backdrop blur." }
+    ],
+    "motion": [
+      { "name": "btn-transition", "value": "background 0.2s, opacity 0.2s, transform 0.12s", "purpose": "Default button state transition." },
+      { "name": "btn-press", "value": "transform: translateY(1px) scale(0.99)", "purpose": "Active/press feedback on buttons." }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "767px" },
+      { "name": "tablet", "value": "1023px" },
+      { "name": "wide", "value": "1920px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main call-to-action button (Add to Cart, Pay with Paystack, Checkout).",
+      "html": "<button class=\"ds-btn-primary\">Add to Cart</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--color-choc, #2B140F); color: var(--color-white, #FFFDF8); border: none; border-radius: 999px; font-weight: 700; font-size: 14px; padding: 14px 28px; cursor: pointer; transition: background 0.2s, opacity 0.2s, transform 0.12s; } .ds-btn-primary:hover { background: var(--color-cocoa, #684234); } .ds-btn-primary:active { transform: translateY(1px) scale(0.99); } .ds-btn-primary:focus-visible { outline: 2px solid var(--color-choc, #2B140F); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Ghost/outline button for secondary actions.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: transparent; color: var(--color-choc, #2B140F); border: 1.5px solid var(--color-choc, #2B140F); border-radius: 999px; font-weight: 700; font-size: 14px; padding: 14px 28px; cursor: pointer; transition: background 0.2s, color 0.2s; } .ds-btn-secondary:hover { background: var(--color-choc, #2B140F); color: var(--color-white, #FFFDF8); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--color-choc, #2B140F); outline-offset: 2px; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Default elevated surface for products, order summaries, admin panels.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">Order #A11-2K3P</div><div class=\"ds-card-body\">Placed 27 Jul 2026</div></div>",
+      "css": ".ds-card { background: var(--color-white, #FFFDF8); border-radius: 8px; box-shadow: 0 2px 6px rgba(50,26,23,0.08); padding: 18px; } .ds-card-title { font-size: 16px; font-weight: 800; color: var(--color-choc, #2B140F); margin-bottom: 4px; } .ds-card-body { font-size: 13px; color: var(--color-text-muted, #5c443f); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Standard text/email/tel field used across checkout, account, and admin forms.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Full name\" />",
+      "css": ".ds-input { width: 100%; background: var(--color-cream, #F5EBD6); border: 1.5px solid rgba(50,26,23,0.15); border-radius: 8px; padding: 13px 16px; font-size: 14px; color: var(--color-choc, #2B140F); } .ds-input:focus { outline: none; border-color: var(--color-choc, #2B140F); box-shadow: 0 0 0 3px rgba(50,26,23,0.08); }"
+    },
+    {
+      "name": "WhatsApp Button",
+      "kind": "button",
+      "refersTo": "button-whatsapp",
+      "description": "The one intentional palette exception — always opens a real WhatsApp chat.",
+      "html": "<a class=\"ds-btn-whatsapp\" href=\"#\">Contact Support</a>",
+      "css": ".ds-btn-whatsapp { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #25D366; color: #FFFDF8; border-radius: 999px; font-weight: 700; font-size: 14px; padding: 14px 28px; text-decoration: none; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Warm Bakehouse Counter",
+    "overview": "Aries 11 Bakehouse reads like the counter of a real neighborhood bakery, not a generic e-commerce template: a deep-chocolate-and-cream palette, fully pill-shaped buttons and inputs, and a single soft ambient shadow doing all the \"lift\" the interface needs. It is confident without being loud — no gradients, no heavy drop shadows, no corporate blue. An italic serif (Cormorant Garamond) appears only on select display phrases as a handwritten-menu-board accent against an otherwise all-sans (DM Sans) interface; that contrast is the system's one deliberate flourish. The system is nearly flat by design: cards rest on a bare cream background with barely-there shadows, and depth is implied by spacing and color contrast rather than elevation.",
+    "keyCharacteristics": [
+      "Deep chocolate + cream as the whole palette; caramel and olive as the only accents",
+      "Pill-shaped buttons and inputs everywhere — no sharp-cornered interactive elements",
+      "One soft ambient card shadow; otherwise flat",
+      "Serif italic (Cormorant Garamond) reserved for display moments; DM Sans for everything else",
+      "WhatsApp green is the one color intentionally borrowed from outside the palette"
+    ],
+    "rules": [
+      { "name": "The One Family Rule", "body": "Every color on the site is either chocolate/cocoa/cream/caramel/olive or the single, deliberate WhatsApp green exception. No blue, no purple, no generic UI gray.", "section": "colors" },
+      { "name": "The One Flourish Rule", "body": "Cormorant Garamond italic appears on at most one phrase per screen.", "section": "typography" },
+      { "name": "The Whisper-Lift Rule", "body": "No card or panel gets more shadow than the single ambient token. If something needs to feel more important, raise its content weight or spacing — never stack a second shadow tier.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep every button, input, select, and textarea fully pill-shaped or 8px-radius on cards — never introduce a third radius value.",
+      "Do keep Cormorant Garamond italic rare — one display moment per screen.",
+      "Do keep the WhatsApp button's green as the only non-palette color anywhere in the UI.",
+      "Do use the single ambient card shadow for any new elevated surface."
+    ],
+    "donts": [
+      "Don't introduce blue, purple, or neutral gray as an accent.",
+      "Don't add a second serif/display font family.",
+      "Don't give any interactive element a sharp (non-pill, non-8px) corner.",
+      "Don't stack multiple shadow tiers or add a drop shadow to text."
+    ]
+  }
+}

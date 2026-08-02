@@ -16,3 +16,5 @@ node_modules/
 # Design source/reference material — not served by the app. The runtime
 # uses curated copies in public/uploads.
 brand/
+.vercel
+.env*

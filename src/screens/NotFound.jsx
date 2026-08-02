@@ -2,8 +2,8 @@ import EmptyState from '../components/EmptyState.jsx';
 
 export default function NotFound() {
   return (
-    <div className="container" style={{ padding: '96px 0' }}>
-      <EmptyState title="Page not found" desc="The page you're looking for doesn't exist." actionLabel="Back to Home" actionTo="/" />
-    </div>
+    <main className="container not-found-page">
+      <EmptyState title="Page not found" desc="The page may have moved or the link may be incorrect." actionLabel="Return home" actionTo="/" />
+    </main>
   );
 }

@@ -1,30 +1,58 @@
+import { Link } from 'react-router-dom';
+import { Badge } from '../components/ui/badge.jsx';
+import { Button } from '../components/ui/button.jsx';
+
+const SUPPORT_URL = 'https://wa.me/2348121145785';
+
 export default function Contact() {
   return (
-    <div className="container" style={{ padding: '64px 0 96px', maxWidth: 720 }}>
-      <h1 style={{ fontSize: 'clamp(32px, 4vw, 44px)', fontWeight: 800, marginBottom: 32 }}>Contact</h1>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20 }}>
-        <ContactCard label="WhatsApp" value="+234 812 114 5785" href="https://wa.me/2348121145785" cta="Open WhatsApp" whatsapp />
-        <ContactCard label="Phone" value="+234 812 114 5785" href="tel:+2348121145785" cta="Call" />
-        <ContactCard label="Instagram" value="@aries11_bakehouse" href="https://instagram.com/aries11_bakehouse" cta="Visit Instagram" />
-      </div>
-      <div className="card" style={{ padding: 28, marginTop: 24 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-olive)', marginBottom: 12 }}>Hours &amp; Location</div>
-        <div style={{ fontSize: 15, color: 'var(--color-text-muted)', lineHeight: 1.8 }}>
-          Mon&ndash;Sat, 9am&ndash;7pm<br />
-          Abeokuta, Nigeria — exact pickup address confirmed by WhatsApp on order.<br />
-          Orders require 24 hours notice ahead of pickup or delivery.
+    <div className="contact-page">
+      <section className="container contact-intro" aria-labelledby="contact-title">
+        <div className="contact-intro__copy">
+          <Badge variant="caramel">Support</Badge>
+          <h1 id="contact-title">Help without the runaround.</h1>
+          <p>For an existing order, pickup, or delivery question, message the bakehouse and include your order number.</p>
         </div>
-      </div>
-    </div>
-  );
-}
+        <div className="contact-intro__action">
+          <Button asChild variant="whatsapp">
+            <a href={SUPPORT_URL} target="_blank" rel="noreferrer">Message WhatsApp support</a>
+          </Button>
+          <span>Replies Monday-Saturday, 9am-7pm</span>
+        </div>
+      </section>
 
-function ContactCard({ label, value, href, cta, whatsapp }) {
-  return (
-    <div className="card" style={{ padding: 24 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-olive)', marginBottom: 8 }}>{label}</div>
-      <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>{value}</div>
-      <a href={href} target="_blank" rel="noreferrer" className={`btn ${whatsapp ? 'btn-whatsapp' : 'btn-secondary'} btn-sm`}>{cta}</a>
+      <section className="container contact-details" aria-labelledby="contact-details-title">
+        <div className="contact-details__primary">
+          <p className="page-kicker">Quick answers</p>
+          <h2 id="contact-details-title">Start with the right place.</h2>
+          <p>Ordering stays on the website. These links cover the questions that usually come before or after checkout.</p>
+
+          <div className="contact-links">
+            <Link to="/delivery">
+              <span><small>Pickup and delivery</small>Timing, locations, and fees</span>
+              <span aria-hidden="true">&rarr;</span>
+            </Link>
+            <Link to="/faq">
+              <span><small>Frequently asked</small>Ordering and product answers</span>
+              <span aria-hidden="true">&rarr;</span>
+            </Link>
+            <a href="tel:+2348121145785">
+              <span><small>Phone</small>+234 812 114 5785</span>
+              <span aria-hidden="true">&rarr;</span>
+            </a>
+          </div>
+        </div>
+
+        <aside className="contact-hours" aria-labelledby="contact-hours-title">
+          <h2 id="contact-hours-title">Bakehouse details</h2>
+          <dl>
+            <div><dt>Open</dt><dd>Monday-Saturday, 9am-7pm</dd></div>
+            <div><dt>Location</dt><dd>Abeokuta, Nigeria</dd></div>
+            <div><dt>Pickup</dt><dd>Exact address confirmed after ordering.</dd></div>
+            <div><dt>Notice</dt><dd>Please order at least 24 hours ahead.</dd></div>
+          </dl>
+        </aside>
+      </section>
     </div>
   );
 }

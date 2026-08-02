@@ -9,6 +9,8 @@ node_modules/
 # Machine-local AI-tool hook configs (absolute paths, not portable)
 .codex/
 .cursor/
+.claude/
+.impeccable/
 
 # Design source/reference material — not served by the app. The runtime
 # uses curated copies in public/uploads.

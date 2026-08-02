@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Search as SearchIcon, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useCategories, useProducts } from '../hooks/useCatalog.js';
-import { fmtNaira } from '../lib/format.js';
 import ProductCard from '../components/ProductCard.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import { trackEvent } from '../lib/analytics.js';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from '../components/ui/input-group.jsx';
 
-// §3: "Type-ahead suggesting product names after 2 characters" — results
-// filter live as the customer types, no submit required. The URL `q` param
-// is kept in sync (replace, not push) so a search is still shareable/
-// deep-linkable without spamming browser history on every keystroke.
 export default function Search() {
   const [params, setParams] = useSearchParams();
   const [input, setInput] = useState(params.get('q') || '');
@@ -17,82 +19,44 @@ export default function Search() {
   const { data: categories } = useCategories();
 
   useEffect(() => {
-    const id = setTimeout(() => {
+    const timer = setTimeout(() => {
       setParams(input ? { q: input } : {}, { replace: true });
       if (input.trim().length >= 2) trackEvent('search_performed', { query: input.trim() });
-    }, 250);
-    return () => clearTimeout(id);
+    }, 300);
+    return () => clearTimeout(timer);
   }, [input, setParams]);
 
   const query = input.trim();
   const results = useMemo(() => {
     if (query.length < 2 || !products) return [];
-    const q = query.toLowerCase();
-    return products.filter((p) => p.name.toLowerCase().includes(q) || p.category.includes(q));
+    const normalized = query.toLowerCase();
+    return products.filter((product) => product.name.toLowerCase().includes(normalized)
+      || product.category.includes(normalized)
+      || product.desc?.toLowerCase().includes(normalized));
   }, [query, products]);
-  const suggestions = query.length >= 2 ? results.slice(0, 5) : [];
 
   return (
-    <div className="container" style={{ padding: '56px 0 96px' }}>
-      <h1 style={{ fontSize: 'clamp(32px, 4vw, 44px)', fontWeight: 800, marginBottom: 24 }}>Search</h1>
-      <div style={{ marginBottom: 40, maxWidth: 480 }}>
+    <main className="search-page">
+      <section className="container search-page__intro">
+        <p className="page-kicker">Find a treat</p>
+        <h1>Search the menu</h1>
+        <p>Search by product, flavour, or category.</p>
         <label className="visually-hidden" htmlFor="search-q">Search products</label>
-        <input
-          id="search-q" type="search" value={input} onChange={(e) => setInput(e.target.value)}
-          placeholder="Search for banana bread, brownies, small chops..." style={{ width: '100%', borderRadius: 999 }} autoFocus
-        />
-      </div>
+        <InputGroup className="search-field">
+          <InputGroupInput id="search-q" type="search" value={input} onChange={(event) => setInput(event.target.value)} placeholder="Banana bread, brownies, small chops..." />
+          <InputGroupAddon><SearchIcon size={19} aria-hidden="true" /></InputGroupAddon>
+          {input && <InputGroupAddon align="inline-end"><InputGroupButton size="icon-sm" onClick={() => setInput('')} aria-label="Clear search"><X size={17} aria-hidden="true" /></InputGroupButton></InputGroupAddon>}
+        </InputGroup>
+      </section>
 
-      {suggestions.length > 0 && (
-        <div style={{ margin: '-20px 0 36px', maxWidth: 560 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-olive)', marginBottom: 12 }}>Suggestions</div>
-          <div className="card" style={{ padding: 8, display: 'flex', flexDirection: 'column' }}>
-            {suggestions.map((p) => (
-              <Link
-                key={p.slug}
-                to={`/product/${p.slug}`}
-                style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '12px 14px', borderRadius: 10, color: 'inherit', textDecoration: 'none' }}
-              >
-                <span style={{ fontSize: 14, fontWeight: 700 }}>{p.name}</span>
-                <span style={{ fontSize: 13, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
-                  {p.startingPrice === null ? 'Price TBC' : fmtNaira(p.startingPrice)}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {query.length < 2 ? (
-        <PopularCategories categories={categories} />
-      ) : productsLoading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
-          {Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 260 }} />)}
-        </div>
-      ) : results.length > 0 ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
-          {results.map((p) => <ProductCard key={p.slug} product={p} />)}
-        </div>
-      ) : (
-        <>
-          <EmptyState title={`No results for "${query}"`} desc="Try one of our popular categories instead:" />
-          <PopularCategories categories={categories} />
-        </>
-      )}
-    </div>
+      <section className="container search-page__results" aria-live="polite">
+        {query.length < 2 ? <PopularCategories categories={categories} /> : productsLoading ? <div className="search-grid" aria-label="Loading search results">{Array.from({ length: 4 }).map((_, index) => <div key={index} className="skeleton search-grid__skeleton" />)}</div> : results.length > 0 ? <><div className="search-results__header"><h2>Results for “{query}”</h2><span>{results.length} {results.length === 1 ? 'item' : 'items'}</span></div><div className="search-grid">{results.map((product) => <ProductCard key={product.slug} product={product} />)}</div></> : <EmptyState icon={SearchIcon} title={`No results for “${query}”`} desc="Try a broader product name or browse a category below."><PopularCategories categories={categories} compact /></EmptyState>}
+      </section>
+    </main>
   );
 }
 
-function PopularCategories({ categories }) {
-  if (!categories) return null;
-  return (
-    <div>
-      <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-olive)', marginBottom: 16 }}>Popular Categories</div>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        {categories.map((c) => (
-          <Link key={c.id} to={`/menu/${c.id}`} className="btn btn-secondary btn-sm">{c.name}</Link>
-        ))}
-      </div>
-    </div>
-  );
+function PopularCategories({ categories, compact = false }) {
+  if (!categories?.length) return null;
+  return <div className={`search-categories${compact ? ' is-compact' : ''}`}><div><p className="page-kicker">Browse instead</p><h2>Popular categories</h2></div><div>{categories.map((category) => <Link key={category.id} to={`/menu/${category.id}`}>{category.name}<ArrowRight size={14} aria-hidden="true" /></Link>)}</div></div>;
 }

@@ -1,5 +1,6 @@
 import { cn } from '../../lib/utils.js';
+import { forwardRef } from 'react';
 
-export function Textarea({ className, ...props }) {
-  return <textarea className={cn('ui-input ui-textarea', className)} {...props} />;
-}
+export const Textarea = forwardRef(function Textarea({ className, ...props }, ref) {
+  return <textarea ref={ref} data-slot="textarea" className={cn('ui-input ui-textarea', className)} {...props} />;
+});

@@ -1,22 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Search, Users } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient.js';
+import { fmtNaira } from '../lib/format.js';
+import { AdminEmpty, AdminLoading, AdminPage, AdminPageHeader, AdminStatusBadge, AdminToolbar } from './AdminPrimitives.jsx';
+import { toast } from '../components/ui/toast.jsx';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '../components/ui/input-group.jsx';
 
 export default function CustomersAdmin() {
   const [customers, setCustomers] = useState(null);
   const [ordersByCustomer, setOrdersByCustomer] = useState({});
   const [search, setSearch] = useState('');
   const [includeGuests, setIncludeGuests] = useState(false);
+  const [savingId, setSavingId] = useState(null);
 
   function load() {
     let query = supabase.from('customer').select('*').order('created_at', { ascending: false }).limit(300);
     if (!includeGuests) query = query.eq('is_guest', false);
-    Promise.all([
+    return Promise.all([
       query,
       supabase.from('order').select('id, customer_id, total, status').limit(1000),
-    ]).then(([customerRes, orderRes]) => {
-      setCustomers(customerRes.error ? [] : customerRes.data || []);
+    ]).then(([customerResult, orderResult]) => {
+      setCustomers(customerResult.error ? [] : customerResult.data || []);
       const grouped = {};
-      for (const order of orderRes.error ? [] : orderRes.data || []) {
+      for (const order of orderResult.error ? [] : orderResult.data || []) {
         if (!grouped[order.customer_id]) grouped[order.customer_id] = [];
         grouped[order.customer_id].push(order);
       }
@@ -24,54 +30,48 @@ export default function CustomersAdmin() {
     });
   }
 
-  useEffect(load, [includeGuests]);
+  useEffect(() => { load(); }, [includeGuests]);
 
   async function updateCustomer(customer, patch) {
-    await supabase.from('customer').update(patch).eq('id', customer.id);
-    load();
+    setSavingId(customer.id);
+    const { error } = await supabase.from('customer').update(patch).eq('id', customer.id);
+    if (error) toast.error('Customer was not updated', { description: error.message });
+    await load();
+    setSavingId(null);
   }
 
-  if (customers === null) return <div>Loading…</div>;
-  const filtered = customers.filter((c) => {
-    const q = search.trim().toLowerCase();
-    return !q || [c.name, c.email, c.phone].some((v) => (v || '').toLowerCase().includes(q));
-  });
+  const filtered = useMemo(() => (customers || []).filter((customer) => {
+    const query = search.trim().toLowerCase();
+    return !query || [customer.name, customer.email, customer.phone].some((value) => (value || '').toLowerCase().includes(query));
+  }), [customers, search]);
 
   return (
-    <div>
-      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>Customers</h1>
-      <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 20 }}>Registered accounts by default; include guests when matching website orders to phone/email records.</p>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
-        <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search customers..." aria-label="Search customers" style={{ flex: '1 1 240px', borderRadius: 999 }} />
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700 }}>
-          <input type="checkbox" checked={includeGuests} onChange={(e) => setIncludeGuests(e.target.checked)} /> Include guests
-        </label>
-      </div>
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        {filtered.map((c) => (
-          <div key={c.id} style={{ padding: '14px 20px', borderBottom: '1px solid rgba(50,26,23,0.08)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, alignItems: 'center' }}>
-            <div>
-              <input defaultValue={c.name || ''} placeholder="Name" onBlur={(e) => updateCustomer(c, { name: e.target.value || null })} style={{ width: '100%' }} />
-              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
-                {c.is_guest ? 'Guest' : 'Account'} · joined {new Date(c.created_at).toLocaleDateString()}
-              </div>
-            </div>
-            <div style={{ display: 'grid', gap: 8 }}>
-              <input defaultValue={c.email || ''} placeholder="Email" onBlur={(e) => updateCustomer(c, { email: e.target.value || null })} />
-              <input defaultValue={c.phone || ''} placeholder="Phone" onBlur={(e) => updateCustomer(c, { phone: e.target.value || null })} />
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-              {(ordersByCustomer[c.id] || []).length} order(s)<br />
-              ₦{(ordersByCustomer[c.id] || []).reduce((sum, o) => sum + (o.total || 0), 0).toLocaleString('en-NG')}
-            </div>
-            <select value={c.role} onChange={(e) => updateCustomer(c, { role: e.target.value })} aria-label={`${c.name || 'Customer'} role`}>
-              <option value="customer">Customer</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-        ))}
-        {filtered.length === 0 && <div style={{ padding: 20, color: 'var(--color-text-muted)' }}>No customers match this view.</div>}
-      </div>
-    </div>
+    <AdminPage>
+      <AdminPageHeader eyebrow="Operations" title="Customers" description="Registered accounts are shown by default. Include guest records when tracing website orders." />
+
+      <AdminToolbar>
+        <label className="admin-search-field"><span>Search</span><InputGroup><InputGroupInput type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name, email, or phone" /><InputGroupAddon><Search size={16} aria-hidden="true" /></InputGroupAddon></InputGroup></label>
+        <label className="admin-switch"><input type="checkbox" checked={includeGuests} onChange={(event) => setIncludeGuests(event.target.checked)} /><span aria-hidden="true" /><strong>Include guests</strong></label>
+      </AdminToolbar>
+
+      {customers === null ? <AdminLoading label="Loading customers…" /> : (
+        <section className="admin-panel admin-panel--table">
+          <div className="admin-panel__header"><div><h2>Customer directory</h2><p>{filtered.length} record{filtered.length === 1 ? '' : 's'} in this view</p></div></div>
+          {filtered.length ? <div className="admin-table-wrap"><table className="admin-table admin-customer-table"><thead><tr><th>Customer</th><th>Contact</th><th>Orders</th><th>Total spent</th><th>Type</th><th>Role</th></tr></thead><tbody>
+            {filtered.map((customer) => {
+              const customerOrders = ordersByCustomer[customer.id] || [];
+              return <tr key={customer.id}>
+                <td><input className="admin-table__input" defaultValue={customer.name || ''} placeholder="Add name" onBlur={(event) => event.target.value !== (customer.name || '') && updateCustomer(customer, { name: event.target.value || null })} /><small>Joined {new Date(customer.created_at).toLocaleDateString('en-NG')}</small></td>
+                <td><input className="admin-table__input" type="email" defaultValue={customer.email || ''} placeholder="Add email" onBlur={(event) => event.target.value !== (customer.email || '') && updateCustomer(customer, { email: event.target.value || null })} /><input className="admin-table__input" type="tel" defaultValue={customer.phone || ''} placeholder="Add phone" onBlur={(event) => event.target.value !== (customer.phone || '') && updateCustomer(customer, { phone: event.target.value || null })} /></td>
+                <td>{customerOrders.length}</td>
+                <td><strong>{fmtNaira(customerOrders.reduce((sum, order) => sum + (order.total || 0), 0))}</strong></td>
+                <td><AdminStatusBadge status={customer.is_guest ? 'inactive' : 'active'}>{customer.is_guest ? 'Guest' : 'Account'}</AdminStatusBadge></td>
+                <td><select className="admin-table__select" value={customer.role} disabled={savingId === customer.id} onChange={(event) => updateCustomer(customer, { role: event.target.value })} aria-label={`${customer.name || 'Customer'} role`}><option value="customer">Customer</option><option value="admin">Admin</option></select></td>
+              </tr>;
+            })}
+          </tbody></table></div> : <AdminEmpty icon={Users}>No customers match this view.</AdminEmpty>}
+        </section>
+      )}
+    </AdminPage>
   );
 }

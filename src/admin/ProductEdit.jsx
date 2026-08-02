@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient.js';
+import { toast } from '../components/ui/toast.jsx';
+import { ConfirmAlertDialog } from '../components/ui/alert-dialog.jsx';
+import { Textarea } from '../components/ui/textarea.jsx';
 import { fmtNaira } from '../lib/format.js';
 
 const EMPTY_PRODUCT = {
@@ -72,21 +75,19 @@ export default function ProductEdit() {
       ? await supabase.from('product').insert(productPayload()).select('id').single()
       : await supabase.from('product').update(productPayload()).eq('id', productId).select('id').single();
     setSaving(false);
-    if (error) { alert(error.message); return; }
+    if (error) { toast.error('Product was not saved', { description: error.message }); return; }
     if (isNew) navigate(`/admin/products/${data.id}`);
     else loadProduct();
   }
 
   async function archiveProduct() {
-    if (!window.confirm('Hide this product from the storefront?')) return;
     await supabase.from('product').update({ is_active: false, availability: 'unavailable', updated_at: new Date().toISOString() }).eq('id', productId);
     navigate('/admin/products');
   }
 
   async function deleteProduct() {
-    if (!window.confirm('Permanently delete this product? This only works when no orders reference it.')) return;
     const { error } = await supabase.from('product').delete().eq('id', productId);
-    if (error) { alert(error.message); return; }
+    if (error) { toast.error('Product was not deleted', { description: error.message }); return; }
     navigate('/admin/products');
   }
 
@@ -107,7 +108,6 @@ export default function ProductEdit() {
   }
 
   async function deleteImage(image) {
-    if (!window.confirm('Remove this image?')) return;
     await supabase.from('product_image').delete().eq('id', image.id);
     loadProduct();
   }
@@ -134,7 +134,6 @@ export default function ProductEdit() {
   }
 
   async function deleteVariant(variant) {
-    if (!window.confirm(`Delete variant "${variant.label}"?`)) return;
     await supabase.from('product_variant').delete().eq('id', variant.id);
     loadProduct();
   }
@@ -151,8 +150,21 @@ export default function ProductEdit() {
         </div>
         {!isNew && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={archiveProduct}>Archive</button>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={deleteProduct}>Delete</button>
+            <ConfirmAlertDialog
+              trigger={<button type="button" className="btn btn-secondary btn-sm">Archive</button>}
+              title={`Archive ${form.name}?`}
+              description="This product will be hidden from the storefront. You can restore it later."
+              confirmLabel="Archive product"
+              destructive={false}
+              onConfirm={archiveProduct}
+            />
+            <ConfirmAlertDialog
+              trigger={<button type="button" className="btn btn-secondary btn-sm">Delete</button>}
+              title={`Delete ${form.name}?`}
+              description="This permanently removes the product and only succeeds when no orders reference it."
+              confirmLabel="Delete product"
+              onConfirm={deleteProduct}
+            />
           </div>
         )}
       </div>
@@ -198,7 +210,7 @@ export default function ProductEdit() {
         <Field label="Allergen Note"><input value={form.allergen_note || ''} onChange={(e) => set('allergen_note', e.target.value)} style={{ width: '100%' }} /></Field>
         <Field label="Storage Note"><input value={form.storage_note || ''} onChange={(e) => set('storage_note', e.target.value)} style={{ width: '100%' }} /></Field>
         <Field label="Description">
-          <textarea value={form.description || ''} onChange={(e) => set('description', e.target.value)} style={{ width: '100%', height: 80 }} />
+          <Textarea value={form.description || ''} onChange={(e) => set('description', e.target.value)} style={{ height: 80 }} />
         </Field>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
@@ -226,7 +238,13 @@ export default function ProductEdit() {
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                       <input type="number" defaultValue={image.sort_order} aria-label="Image sort order" onBlur={(e) => updateImage(image, { sort_order: Number(e.target.value) || 0 })} style={{ width: 90 }} />
                       <button type="button" className="btn btn-secondary btn-sm" onClick={() => updateImage(image, { is_primary: true })}>{image.is_primary ? 'Primary' : 'Make Primary'}</button>
-                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => deleteImage(image)}>Remove</button>
+                      <ConfirmAlertDialog
+                        trigger={<button type="button" className="btn btn-secondary btn-sm">Remove</button>}
+                        title="Remove this image?"
+                        description="The image will no longer appear with this product."
+                        confirmLabel="Remove image"
+                        onConfirm={() => deleteImage(image)}
+                      />
                     </div>
                   </div>
                 </div>
@@ -266,7 +284,13 @@ export default function ProductEdit() {
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <button type="button" className="btn btn-secondary btn-sm" onClick={() => updateVariant(variant, { is_active: !variant.is_active })}>{variant.is_active ? 'Active' : 'Inactive'}</button>
                       <button type="button" className="btn btn-secondary btn-sm" onClick={() => updateVariant(variant, { is_mixed_allowed: !variant.is_mixed_allowed })}>{variant.is_mixed_allowed ? 'Mixed Allowed' : 'No Mixed'}</button>
-                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => deleteVariant(variant)}>Delete</button>
+                      <ConfirmAlertDialog
+                        trigger={<button type="button" className="btn btn-secondary btn-sm">Delete</button>}
+                        title={`Delete ${variant.label}?`}
+                        description="This variant will no longer be available to customers. This action cannot be undone."
+                        confirmLabel="Delete variant"
+                        onConfirm={() => deleteVariant(variant)}
+                      />
                     </div>
                   </div>
                 </div>

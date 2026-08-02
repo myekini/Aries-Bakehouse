@@ -1,76 +1,79 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { CircleDollarSign, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient.js';
 import { fmtNaira } from '../lib/format.js';
+import { AdminEmpty, AdminLoading, AdminPage, AdminPageHeader, AdminStatusBadge, AdminToolbar } from './AdminPrimitives.jsx';
+import { toast } from '../components/ui/toast.jsx';
+
+const PAYMENT_STATUSES = ['pending', 'success', 'failed', 'abandoned'];
 
 export default function PaymentsAdmin() {
   const [payments, setPayments] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [verifying, setVerifying] = useState(null);
-  const [message, setMessage] = useState('');
 
   function load() {
-    supabase.from('payment').select('*, order(order_number)').order('created_at', { ascending: false }).limit(200)
+    return supabase.from('payment').select('*, order(order_number)').order('created_at', { ascending: false }).limit(200)
       .then(({ data, error }) => setPayments(error ? [] : data));
   }
 
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   async function verify(payment) {
     setVerifying(payment.id);
-    setMessage('');
     try {
-      const { data, error } = await supabase.functions.invoke('verify-payment', { body: { reference: payment.reference } });
-      if (error) throw error;
-      setMessage(data?.confirmed ? `${payment.reference} verified successfully.` : `${payment.reference} is not confirmed by Paystack yet.`);
-      await load();
-    } catch (err) {
-      setMessage(`Verification failed: ${err.message}`);
+      await toast.promise((async () => {
+        const { data, error } = await supabase.functions.invoke('verify-payment', { body: { reference: payment.reference } });
+        if (error) throw error;
+        await load();
+        return data;
+      })(), {
+        loading: { title: 'Checking payment', description: payment.reference },
+        success: (data) => data?.confirmed
+          ? { title: 'Payment verified', description: payment.reference }
+          : { title: 'Payment not confirmed', description: payment.reference, type: 'warning' },
+        error: (error) => ({ title: 'Verification failed', description: error.message }),
+      });
+    } catch {
+      // toast.promise renders the actionable failure state.
     } finally {
       setVerifying(null);
     }
   }
 
-  if (payments === null) return <div>Loading…</div>;
-  const filtered = payments.filter((p) => statusFilter === 'all' || p.status === statusFilter);
+  const filtered = useMemo(() => (payments || []).filter((payment) => statusFilter === 'all' || payment.status === statusFilter), [payments, statusFilter]);
+  const successfulTotal = (payments || []).filter((payment) => payment.status === 'success').reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
 
   return (
-    <div>
-      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>Payments</h1>
-      <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 20 }}>
-        Cross-check references against the Paystack dashboard if a status looks stuck.
-      </p>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 20 }}>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ borderRadius: 8 }}>
-          <option value="all">All payments</option>
-          <option value="pending">Pending</option>
-          <option value="success">Success</option>
-          <option value="failed">Failed</option>
-          <option value="abandoned">Abandoned</option>
-        </select>
-        {message && <div role="status" style={{ fontSize: 12, color: message.includes('failed') ? 'var(--color-error)' : 'var(--color-olive)' }}>{message}</div>}
+    <AdminPage>
+      <AdminPageHeader eyebrow="Operations" title="Payments" description="Review Paystack references and manually recheck transactions that are still pending." />
+
+      <div className="admin-inline-metrics">
+        <div><span>Successful volume</span><strong>{fmtNaira(successfulTotal)}</strong></div>
+        <div><span>Transactions</span><strong>{payments?.length || 0}</strong></div>
+        <div><span>Pending review</span><strong>{(payments || []).filter((payment) => payment.status === 'pending').length}</strong></div>
       </div>
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        {filtered.map((p) => (
-          <div key={p.id} style={{ padding: '14px 20px', borderBottom: '1px solid rgba(50,26,23,0.08)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, alignItems: 'center' }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 14 }}>{p.reference}</div>
-              <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                {p.order?.order_number ? <Link to={`/admin/orders/${p.order_id}`}>Order #{p.order.order_number}</Link> : 'No order'}
-                {p.verified_at ? ` · verified ${new Date(p.verified_at).toLocaleString()}` : ''}
-              </div>
-            </div>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>{fmtNaira(p.amount)}</div>
-            <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', color: p.status === 'success' ? 'var(--color-olive)' : p.status === 'failed' ? 'var(--color-error)' : 'var(--color-text-faint)' }}>
-              {p.status}
-            </div>
-            <button className="btn btn-secondary btn-sm" disabled={verifying === p.id || !p.reference} aria-busy={verifying === p.id} onClick={() => verify(p)}>
-              {verifying === p.id ? 'Checking...' : 'Verify'}
-            </button>
-          </div>
-        ))}
-        {filtered.length === 0 && <div style={{ padding: 20, color: 'var(--color-text-muted)' }}>No payments match this filter.</div>}
-      </div>
-    </div>
+
+      <AdminToolbar>
+        <label><span>Status</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">All payments</option>{PAYMENT_STATUSES.map((status) => <option key={status} value={status}>{status[0].toUpperCase() + status.slice(1)}</option>)}</select></label>
+      </AdminToolbar>
+
+      {payments === null ? <AdminLoading label="Loading payments…" /> : (
+        <section className="admin-panel admin-panel--table">
+          <div className="admin-panel__header"><div><h2>Transactions</h2><p>{filtered.length} payment{filtered.length === 1 ? '' : 's'} in this view</p></div></div>
+          {filtered.length ? <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Reference</th><th>Order</th><th>Date</th><th>Status</th><th className="is-numeric">Amount</th><th aria-label="Actions" /></tr></thead><tbody>
+            {filtered.map((payment) => <tr key={payment.id}>
+              <td><strong className="admin-table__primary admin-table__reference">{payment.reference}</strong><small>{payment.provider}</small></td>
+              <td>{payment.order?.order_number ? <Link to={`/admin/orders/${payment.order_id}`}>#{payment.order.order_number}</Link> : <span className="admin-table__muted">No order</span>}</td>
+              <td>{new Date(payment.created_at).toLocaleDateString('en-NG')}<small>{payment.verified_at ? `Verified ${new Date(payment.verified_at).toLocaleDateString('en-NG')}` : 'Not verified'}</small></td>
+              <td><AdminStatusBadge status={payment.status}>{payment.status}</AdminStatusBadge></td>
+              <td className="is-numeric"><strong>{fmtNaira(payment.amount)}</strong></td>
+              <td className="is-numeric"><button className="admin-row-action" type="button" disabled={verifying === payment.id || !payment.reference} onClick={() => verify(payment)}><RefreshCw className={verifying === payment.id ? 'admin-spinner' : ''} size={14} aria-hidden="true" />{verifying === payment.id ? 'Checking' : 'Verify'}</button></td>
+            </tr>)}
+          </tbody></table></div> : <AdminEmpty icon={CircleDollarSign}>No payments match this filter.</AdminEmpty>}
+        </section>
+      )}
+    </AdminPage>
   );
 }

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
+import { toast } from '../components/ui/toast.jsx';
+import { ConfirmAlertDialog } from '../components/ui/alert-dialog.jsx';
 
 export default function ReviewsAdmin() {
   const [reviews, setReviews] = useState(null);
@@ -17,9 +19,8 @@ export default function ReviewsAdmin() {
   }
 
   async function deleteReview(review) {
-    if (!window.confirm('Delete this review permanently?')) return;
     const { error } = await supabase.from('review').delete().eq('id', review.id);
-    if (error) alert(error.message);
+    if (error) toast.error('Review was not deleted', { description: error.message });
     load();
   }
 
@@ -76,7 +77,13 @@ export default function ReviewsAdmin() {
               <button onClick={() => moderate(r, 'published')} className="btn btn-secondary btn-sm">Publish</button>
               <button onClick={() => moderate(r, 'pending')} className="btn btn-secondary btn-sm">Hold</button>
               <button onClick={() => moderate(r, 'rejected')} className="btn btn-secondary btn-sm">Reject</button>
-              <button onClick={() => deleteReview(r)} className="btn btn-secondary btn-sm">Delete</button>
+              <ConfirmAlertDialog
+                trigger={<button type="button" className="btn btn-secondary btn-sm">Delete</button>}
+                title="Delete this review?"
+                description={`The review for ${r.product?.name || 'this product'} will be permanently removed.`}
+                confirmLabel="Delete review"
+                onConfirm={() => deleteReview(r)}
+              />
             </div>
           </div>
         ))}

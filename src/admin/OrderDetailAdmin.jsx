@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient.js';
 import { fmtNaira, fmtLineTotal } from '../lib/format.js';
 import { trackEvent } from '../lib/analytics.js';
+import { toast } from '../components/ui/toast.jsx';
 
 const STATUSES = ['pending', 'confirmed', 'preparing', 'ready_or_out', 'completed', 'cancelled'];
 const STATUS_LABEL = {
@@ -25,7 +26,7 @@ export default function OrderDetailAdmin() {
   async function updateStatus(status) {
     setSaving(true);
     const { error } = await supabase.from('order').update({ status, updated_at: new Date().toISOString() }).eq('id', orderId);
-    if (error) alert(error.message);
+    if (error) toast.error('Order status was not updated', { description: error.message });
     else if (status === 'completed') trackEvent('order_completed', { orderId });
     load();
     setSaving(false);
@@ -36,10 +37,11 @@ export default function OrderDetailAdmin() {
     try {
       const { data, error } = await supabase.functions.invoke('verify-payment', { body: { reference: payment.reference } });
       if (error) throw error;
-      if (!data?.confirmed) alert('Paystack has not confirmed this payment yet.');
+      if (data?.confirmed) toast.success('Payment verified', { description: payment.reference });
+      else toast.warning('Payment not confirmed', { description: payment.reference });
       load();
     } catch (err) {
-      alert(err.message);
+      toast.error('Verification failed', { description: err.message });
     } finally {
       setVerifying(null);
     }

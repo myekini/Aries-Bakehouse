@@ -1,94 +1,66 @@
 import { useEffect, useRef } from 'react';
+import { Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext.jsx';
-import { fmtNaira } from '../lib/format.js';
+import { fmtLineTotal, fmtNaira } from '../lib/format.js';
 
 export default function CartDrawer() {
-  const { items, subtotal, drawerOpen, closeDrawer, updateQty, removeFromCart } = useCart();
+  const { items, subtotal, hasUnpricedItems, drawerOpen, closeDrawer, updateQty, removeFromCart } = useCart();
   const dialogRef = useRef(null);
+  const closeButtonRef = useRef(null);
 
   useEffect(() => {
     if (!drawerOpen) return undefined;
-    dialogRef.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    closeButtonRef.current?.focus();
 
     function onKeyDown(event) {
-      if (event.key === 'Escape') closeDrawer();
+      if (event.key === 'Escape') {
+        closeDrawer();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = dialogRef.current?.querySelectorAll('a[href], button:not([disabled])');
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     }
 
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
   }, [closeDrawer, drawerOpen]);
 
   if (!drawerOpen) return null;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 100 }}>
-      <div
-        onClick={closeDrawer}
-        aria-hidden="true"
-        style={{ position: 'absolute', inset: 0, background: 'rgba(50,26,23,0.4)', opacity: 1, transition: 'opacity 0.3s' }}
-      />
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-label="Shopping cart"
-        aria-modal="true"
-        tabIndex={-1}
-        style={{
-          position: 'absolute', top: 0, right: 0, height: '100%', width: 'min(420px, 100vw)',
-          background: 'var(--color-cream)', boxShadow: '-16px 0 40px rgba(50,26,23,0.2)',
-          transform: 'translateX(0)',
-          transition: 'transform 0.35s cubic-bezier(0.16,1,0.3,1)',
-          display: 'flex', flexDirection: 'column',
-        }}
-      >
-        <div style={{ padding: 24, borderBottom: '1px solid rgba(50,26,23,0.12)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontWeight: 800, fontSize: 18 }}>Your Cart</div>
-          <button onClick={closeDrawer} aria-label="Close cart" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, fontWeight: 700 }}>&times;</button>
+    <div className="cart-drawer-root">
+      <button className="cart-drawer__backdrop" type="button" onClick={closeDrawer} aria-label="Close cart" />
+      <aside ref={dialogRef} role="dialog" aria-label="Shopping cart" aria-modal="true" tabIndex={-1} className="cart-drawer">
+        <header className="cart-drawer__header"><div><p>Your selection</p><h2>Cart <span>{items.length}</span></h2></div><button ref={closeButtonRef} type="button" onClick={closeDrawer} aria-label="Close cart"><X size={20} aria-hidden="true" /></button></header>
+
+        <div className="cart-drawer__body">
+          {items.length === 0 ? <div className="cart-drawer__empty"><span><ShoppingBag size={21} aria-hidden="true" /></span><h3>Your cart is empty</h3><p>Add something fresh from the menu.</p><Link to="/menu" onClick={closeDrawer} className="btn btn-primary">Browse menu</Link></div> : <div className="cart-drawer__items">
+            {items.map((item) => <article key={item.id} className="cart-drawer__item">
+              <span className="cart-drawer__image">{item.image ? <img loading="lazy" src={item.image} alt="" /> : <ShoppingBag size={17} aria-hidden="true" />}</span>
+              <div className="cart-drawer__copy"><h3>{item.name}</h3><strong>{fmtLineTotal(item.price, item.qty)}</strong><div><button type="button" disabled={item.qty <= 1} onClick={() => updateQty(item.id, item.qty - 1)} aria-label={`Decrease ${item.name} quantity`}><Minus size={13} aria-hidden="true" /></button><span>{item.qty}</span><button type="button" onClick={() => updateQty(item.id, item.qty + 1)} aria-label={`Increase ${item.name} quantity`}><Plus size={13} aria-hidden="true" /></button></div></div>
+              <button type="button" className="cart-drawer__remove" onClick={() => removeFromCart(item.id)} aria-label={`Remove ${item.name}`}><Trash2 size={15} aria-hidden="true" /></button>
+            </article>)}
+          </div>}
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px' }}>
-          {items.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-              <div style={{ fontWeight: 700, fontSize: 16 }}>Your cart is empty</div>
-              <div style={{ fontSize: 14, color: 'var(--color-text-muted)', marginTop: 8 }}>Add something fresh from the menu.</div>
-              <Link to="/menu" onClick={closeDrawer} className="btn btn-primary" style={{ display: 'inline-block', marginTop: 20 }}>Browse Menu</Link>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {items.map((it) => (
-                <div key={it.id} style={{ display: 'flex', gap: 14, alignItems: 'center', background: 'var(--color-white)', borderRadius: 14, padding: 12 }}>
-                  <img loading="lazy" src={it.image} alt={it.name} style={{ width: 64, height: 64, borderRadius: 10, objectFit: 'cover' }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>{it.name}</div>
-                    <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 2 }}>{fmtNaira(it.price)}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-                      <button onClick={() => updateQty(it.id, it.qty - 1)} aria-label={`Decrease ${it.name} quantity`} style={stepperBtn}>&minus;</button>
-                      <span style={{ fontWeight: 700, fontSize: 13 }}>{it.qty}</span>
-                      <button onClick={() => updateQty(it.id, it.qty + 1)} aria-label={`Increase ${it.name} quantity`} style={stepperBtn}>+</button>
-                    </div>
-                  </div>
-                  <button onClick={() => removeFromCart(it.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--color-error)', fontWeight: 700 }}>Remove</button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {items.length > 0 && (
-          <div style={{ padding: '20px 24px', borderTop: '1px solid rgba(50,26,23,0.12)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 16, marginBottom: 14 }}>
-              <div>Subtotal</div><div>{fmtNaira(subtotal)}</div>
-            </div>
-            <Link to="/checkout" onClick={closeDrawer} className="btn btn-primary" style={{ display: 'flex', width: '100%' }}>Checkout</Link>
-          </div>
-        )}
-      </div>
+        {items.length > 0 && <footer className="cart-drawer__footer"><div><span>Subtotal</span><strong>{fmtNaira(subtotal)}</strong></div>{hasUnpricedItems && <p>Some prices still need confirmation.</p>}<Link to="/checkout" onClick={closeDrawer} className="btn btn-primary">Checkout</Link><Link to="/cart" onClick={closeDrawer}>View and edit cart</Link></footer>}
+      </aside>
     </div>
   );
 }
-
-const stepperBtn = {
-  width: 36, height: 36, borderRadius: 999, background: 'var(--color-cream)', border: 'none',
-  display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontWeight: 700,
-};

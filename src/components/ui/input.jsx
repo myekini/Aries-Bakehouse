@@ -1,5 +1,6 @@
 import { cn } from '../../lib/utils.js';
+import { forwardRef } from 'react';
 
-export function Input({ className, ...props }) {
-  return <input className={cn('ui-input', className)} {...props} />;
-}
+export const Input = forwardRef(function Input({ className, ...props }, ref) {
+  return <input ref={ref} data-slot="input" className={cn('ui-input', className)} {...props} />;
+});

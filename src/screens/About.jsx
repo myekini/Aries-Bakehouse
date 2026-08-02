@@ -1,28 +1,57 @@
 import { Link } from 'react-router-dom';
+import SignatureLoafSpotlight from '../components/SignatureLoafSpotlight.jsx';
+import { Badge } from '../components/ui/badge.jsx';
+import { Button } from '../components/ui/button.jsx';
 
 export default function About() {
   return (
-    <div className="container" style={{ padding: '64px 0 96px', maxWidth: 800 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--color-olive)', marginBottom: 14 }}>Our Story</div>
-      <h1 style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 400, margin: 0 }}>
-        Freshly made in Abeokuta, since day one.
-      </h1>
-      <p style={{ fontSize: 17, color: 'var(--color-text-muted)', lineHeight: 1.7, marginTop: 24 }}>
-        Aries 11 Bakehouse started in a home kitchen in Abeokuta with one recipe — banana bread — and a simple standard:
-        real ingredients, made to order, never rushed. That standard hasn't changed as the menu has grown to include
-        pastries, brownies, cake treats, and small-chops platters for every kind of gathering.
-      </p>
-      <h2 style={{ fontSize: 22, fontWeight: 700, marginTop: 40 }}>How we bake</h2>
-      <p style={{ fontSize: 16, color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
-        Everything is made to order rather than held in a display case — that's why we ask for 24 hours' notice on
-        every order. It means what reaches you was baked with your order in mind, not sitting on a shelf.
-      </p>
-      <h2 style={{ fontSize: 22, fontWeight: 700, marginTop: 40 }}>Where we serve</h2>
-      <p style={{ fontSize: 16, color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
-        We currently serve Abeokuta and its surrounding areas via pickup and delivery. See our{' '}
-        <Link to="/delivery" style={{ fontWeight: 700, color: 'var(--color-cocoa)' }}>delivery information</Link> page for zones and timing.
-      </p>
-      <Link to="/menu" className="btn btn-primary" style={{ display: 'inline-flex', marginTop: 32 }}>Explore the Menu</Link>
+    <div className="about-page">
+      <section className="about-hero" aria-labelledby="about-title">
+        <img
+          src="/uploads/aries11-brand-collection-hero.webp"
+          alt="Aries 11 banana bread, brownies, pastries, cake treats and small chops"
+        />
+        <div className="about-hero__scrim" aria-hidden="true" />
+        <div className="container about-hero__content">
+          <Badge variant="caramel">Our story</Badge>
+          <h1 id="about-title">A home kitchen idea, baked for Abeokuta.</h1>
+          <p>Aries 11 began with banana bread and a simple standard: make every order fresh, considered, and worth sharing.</p>
+        </div>
+      </section>
+
+      <SignatureLoafSpotlight
+        className="signature-loaf--about"
+        badge="The beginning"
+        headingId="about-beginning-title"
+        title="It started with one loaf."
+        description="Banana bread came first. Seven toppings now let each order feel personal, while the same made-to-order standard carries through every box, platter, and pastry tray."
+        ctaLabel="Configure a loaf"
+      />
+
+      <section className="about-ordering" aria-labelledby="about-ordering-title">
+        <div className="container about-ordering__inner">
+          <div>
+            <p className="page-kicker page-kicker--dark">Why preorder?</p>
+            <h2 id="about-ordering-title">Fresh takes a little planning.</h2>
+          </div>
+          <p>
+            We do not hold products on a shelf waiting for an order. The 24-hour notice gives the kitchen time to prepare your selections close to pickup or delivery.
+          </p>
+          <dl className="about-ordering__details">
+            <div><dt>Kitchen</dt><dd>Made to order</dd></div>
+            <div><dt>Timing</dt><dd>24-hour notice</dd></div>
+            <div><dt>Service</dt><dd>Abeokuta pickup and delivery</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <section className="container about-closing about-closing--simple" aria-labelledby="about-closing-title">
+        <div className="about-closing__copy">
+          <h2 id="about-closing-title">Made for your table.</h2>
+          <p>Choose a loaf, box, platter, or pastry tray and make it yours.</p>
+          <Button asChild><Link to="/menu">Explore the menu</Link></Button>
+        </div>
+      </section>
     </div>
   );
 }

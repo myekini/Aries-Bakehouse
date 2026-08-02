@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext.jsx';
 import { fmtNaira } from '../lib/format.js';
 import { getVariantRules } from '../lib/catalog.js';
-import { productImageFit, productImagePadding } from '../lib/media.js';
+import { productImageFit, productImagePadding, productImageSource } from '../lib/media.js';
+import { ingredientKindFor, variantColorFor } from '../lib/variantPresentation.js';
 import { Badge } from './ui/badge.jsx';
 import { Button } from './ui/button.jsx';
 import { Card } from './ui/card.jsx';
@@ -15,33 +16,62 @@ const badgeVariant = {
   'Out of Stock': 'muted',
 };
 
+const CARD_VARIANT_KEY = {
+  'banana-bread': 'toppings',
+  brownies: 'flavours',
+  cake: 'flavours',
+};
+
 export default function ProductCard({ product }) {
   const { addToCart } = useCart();
   const canQuickAdd = !product.configurator && !product.outOfStock;
   const [previewImage, setPreviewImage] = useState(null);
-  // §6: "Hovering (desktop) / tapping (mobile) a topping swatch on the card
-  // previews the variant image where available." Only one product in the
-  // catalogue currently has this (banana bread), so fetching its variant
-  // rows on mount isn't a meaningful N+1 concern the way fetching per-card
-  // for a whole grid would be.
+  const [tapActive, setTapActive] = useState(false);
   const [swatches, setSwatches] = useState(null);
-  const canSwatch = product.configurator === 'banana-bread';
+  const variantKey = CARD_VARIANT_KEY[product.configurator];
+  const canSwatch = Boolean(variantKey);
+  const imageSrc = productImageSource(product);
 
   useEffect(() => {
     if (!canSwatch) return;
     let cancelled = false;
-    getVariantRules(product.slug, 'banana-bread').then((rules) => { if (!cancelled) setSwatches(rules?.toppings || []); });
+    getVariantRules(product.slug, product.configurator).then((rules) => {
+      if (!cancelled) setSwatches(rules?.[variantKey] || []);
+    });
     return () => { cancelled = true; };
-  }, [canSwatch, product.slug]);
+  }, [canSwatch, product.configurator, product.slug, variantKey]);
+
+  function handleTapState() {
+    if (!window.matchMedia('(hover: none)').matches) return;
+    setTapActive(true);
+    window.setTimeout(() => setTapActive(false), 900);
+  }
 
   return (
-    <Card style={{ padding: 14, opacity: product.outOfStock ? 0.55 : 1, display: 'flex', flexDirection: 'column' }}>
-      <Link to={`/product/${product.slug}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-        <div
-          style={{ position: 'relative', width: '100%', aspectRatio: '1/1', borderRadius: 12, overflow: 'hidden', background: 'linear-gradient(180deg, var(--color-white), var(--color-cream))', padding: productImagePadding(product) }}
-          onMouseLeave={() => setPreviewImage(null)}
-        >
-          <img loading="lazy" src={previewImage || product.image} alt={product.name} style={{ width: '100%', height: '100%', objectFit: previewImage ? 'cover' : productImageFit(product), borderRadius: productImagePadding(product) ? 8 : 0 }} />
+    <Card
+      className={`product-card${tapActive ? ' product-card--tapped' : ''}`}
+      data-reveal-item
+      onPointerDown={handleTapState}
+      style={{ opacity: product.outOfStock ? 0.55 : 1 }}
+    >
+      <div
+        className="product-card__image"
+        style={{ padding: productImagePadding(product) }}
+        onMouseLeave={() => setPreviewImage(null)}
+      >
+        <Link to={`/product/${product.slug}`} className="product-card__image-link" aria-label={`View ${product.name}`}>
+          <img
+            loading="lazy"
+            src={previewImage || imageSrc}
+            alt={product.name}
+            onError={(event) => {
+              if (event.currentTarget.src !== new URL(imageSrc, window.location.origin).href) {
+                event.currentTarget.src = imageSrc;
+              }
+            }}
+            style={{ width: '100%', height: '100%', objectFit: previewImage ? 'cover' : productImageFit(product), borderRadius: productImagePadding(product) ? 8 : 0 }}
+          />
+        </Link>
           {product.badge && (
             <Badge variant={badgeVariant[product.badge] || 'default'} style={{ position: 'absolute', top: 10, left: 10 }}>
               {product.badge}
@@ -52,42 +82,57 @@ export default function ProductCard({ product }) {
               type="button"
               variant="ghost"
               size="icon"
-              onClick={(e) => { e.preventDefault(); addToCart({ id: product.slug, name: product.name, price: product.startingPrice, image: product.image, productId: product.id, variantSelections: {} }); }}
+              onClick={(e) => { e.preventDefault(); addToCart({ id: product.slug, name: product.name, price: product.startingPrice, image: imageSrc, productId: product.id, variantSelections: {} }); }}
               aria-label={`Quick add ${product.name} to cart`}
-              style={{
-                position: 'absolute', top: 8, right: 8, width: 32, height: 32,
-                background: 'var(--color-white)', boxShadow: '0 4px 10px rgba(50,26,23,0.2)', fontSize: 16,
-              }}
+              className="product-card__quick-add"
             >+</Button>
           )}
-        </div>
+      </div>
         {swatches && swatches.length > 0 && (
-          <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }} onMouseLeave={() => setPreviewImage(null)}>
+          <div
+            className="product-card__swatches"
+            aria-label={`Preview ${product.name} options`}
+            onMouseLeave={() => setPreviewImage(null)}
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget)) setPreviewImage(null);
+            }}
+          >
             {swatches.map((sw) => (
-              <span
+              <button
                 key={sw.id}
+                type="button"
                 title={sw.label}
+                aria-label={`Preview ${sw.label}`}
+                aria-pressed={previewImage === sw.image}
                 onMouseEnter={() => setPreviewImage(sw.image)}
-                onTouchStart={() => setPreviewImage((cur) => (cur === sw.image ? null : sw.image))}
-                onClick={(e) => e.preventDefault()}
-                style={{
-                  width: 14, height: 14, borderRadius: 999, background: sw.color,
-                  border: '1px solid rgba(50,26,23,0.2)', cursor: 'pointer',
-                  outline: previewImage === sw.image ? '2px solid var(--color-choc)' : 'none', outlineOffset: 1,
-                }}
-              />
+                onFocus={() => setPreviewImage(sw.image)}
+                onClick={() => setPreviewImage((current) => (current === sw.image ? null : sw.image))}
+                className={previewImage === sw.image ? 'is-active' : ''}
+              >
+                <span
+                  className="product-card__swatch-color"
+                  style={{ background: variantColorFor(sw.id, sw.color) }}
+                  aria-hidden="true"
+                >
+                  <span className={`swatch-picker__ingredient swatch-picker__ingredient--${ingredientKindFor(sw.id)}`} />
+                </span>
+              </button>
             ))}
           </div>
         )}
-        <div style={{ fontWeight: 700, fontSize: 15, marginTop: 12 }}>{product.name}</div>
-        <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{product.desc}</div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
-          <div style={{ fontWeight: 800, fontSize: 15 }}>
+      <div className="product-card__body">
+        <Link to={`/product/${product.slug}`} className="product-card__title">{product.name}</Link>
+        <p className="product-card__description">{product.desc}</p>
+        <div className="product-card__meta">
+          <strong>
             {product.startingPrice === null ? 'Price TBC' : (product.priceFrom ? `From ${fmtNaira(product.startingPrice)}` : fmtNaira(product.startingPrice))}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--color-olive)', fontWeight: 700 }}>{product.availability}</div>
+          </strong>
+          <span>{product.availability}</span>
         </div>
-      </Link>
+        <Link to={`/product/${product.slug}`} className="product-card__cta">
+          {product.configurator ? 'Configure' : 'View details'} <span aria-hidden="true">&rarr;</span>
+        </Link>
+      </div>
     </Card>
   );
 }

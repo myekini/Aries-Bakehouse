@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { fmtNaira } from '../lib/format.js';
+import { toast } from '../components/ui/toast.jsx';
+import { ConfirmAlertDialog } from '../components/ui/alert-dialog.jsx';
 
 export default function DeliveryOptionsAdmin() {
   const [options, setOptions] = useState(null);
@@ -35,9 +37,8 @@ export default function DeliveryOptionsAdmin() {
   }
 
   async function deleteOption(opt) {
-    if (!window.confirm(`Delete delivery option "${opt.name}"?`)) return;
     const { error } = await supabase.from('delivery_option').delete().eq('id', opt.id);
-    if (error) alert(error.message);
+    if (error) toast.error('Delivery option was not deleted', { description: error.message });
     load();
   }
 
@@ -63,7 +64,13 @@ export default function DeliveryOptionsAdmin() {
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => toggleActive(o)} className="btn btn-secondary btn-sm">{o.active ? 'Active' : 'Inactive'}</button>
-              <button onClick={() => deleteOption(o)} className="btn btn-secondary btn-sm">Delete</button>
+              <ConfirmAlertDialog
+                trigger={<button type="button" className="btn btn-secondary btn-sm">Delete</button>}
+                title={`Delete ${o.name}?`}
+                description="This delivery option will no longer be available. This action cannot be undone."
+                confirmLabel="Delete option"
+                onConfirm={() => deleteOption(o)}
+              />
             </div>
           </div>
         ))}

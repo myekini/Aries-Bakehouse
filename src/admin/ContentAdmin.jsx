@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
+import { toast } from '../components/ui/toast.jsx';
+import { Textarea } from '../components/ui/textarea.jsx';
 
 const DEFAULT_ANNOUNCEMENT = { active: true, text: 'Orders require 24 hours notice.' };
 const DEFAULT_PROMO = {
@@ -33,14 +35,15 @@ export default function ContentAdmin() {
     setSaving(key);
     const { error } = await supabase.from('site_content').upsert({ key, value, updated_at: new Date().toISOString() });
     setSaving('');
-    if (error) alert(error.message);
+    if (error) toast.error('Content was not saved', { description: error.message });
+    else toast.success('Content saved');
   }
 
   async function saveJson(key, rawValue) {
     try {
       await saveValue(key, JSON.parse(rawValue));
     } catch (err) {
-      alert(`Invalid JSON: ${err.message}`);
+      toast.error('Invalid JSON', { description: err.message });
     }
   }
 
@@ -74,7 +77,7 @@ export default function ContentAdmin() {
           <input value={promo.href} onChange={(e) => setPromo((v) => ({ ...v, href: e.target.value }))} placeholder="/menu/cake-treats" />
           <input value={promo.cta} onChange={(e) => setPromo((v) => ({ ...v, cta: e.target.value }))} placeholder="CTA label" />
         </div>
-        <textarea value={promo.title} onChange={(e) => setPromo((v) => ({ ...v, title: e.target.value }))} placeholder="Promo headline" style={{ width: '100%', height: 70, marginTop: 10 }} />
+        <Textarea value={promo.title} onChange={(e) => setPromo((v) => ({ ...v, title: e.target.value }))} placeholder="Promo headline" style={{ height: 70, marginTop: 10 }} />
         <button className="btn btn-primary btn-sm" style={{ marginTop: 10 }} disabled={saving === 'promo_banner'} aria-busy={saving === 'promo_banner'} onClick={() => saveValue('promo_banner', promo)}>
           Save Promo
         </button>
@@ -83,14 +86,14 @@ export default function ContentAdmin() {
       <section className="card" style={{ padding: 24, marginBottom: 20 }}>
         <div style={sectionTitle}>Homepage Bestsellers</div>
         <p style={helperText}>JSON array of product slugs, used before real order data is ready.</p>
-        <textarea value={bestsellers} onChange={(e) => setBestsellers(e.target.value)} style={jsonArea} />
+        <Textarea value={bestsellers} onChange={(e) => setBestsellers(e.target.value)} style={jsonArea} />
         <button className="btn btn-primary btn-sm" style={{ marginTop: 10 }} disabled={saving === 'homepage_bestsellers'} aria-busy={saving === 'homepage_bestsellers'} onClick={() => saveJson('homepage_bestsellers', bestsellers)}>Save Bestsellers</button>
       </section>
 
       <section className="card" style={{ padding: 24 }}>
         <div style={sectionTitle}>Homepage Featured</div>
         <p style={helperText}>JSON array of objects like {'{ "slug": "brownie-box", "tag": "Box of 4 Brownies" }'}.</p>
-        <textarea value={featured} onChange={(e) => setFeatured(e.target.value)} style={{ ...jsonArea, height: 160 }} />
+        <Textarea value={featured} onChange={(e) => setFeatured(e.target.value)} style={{ ...jsonArea, height: 160 }} />
         <button className="btn btn-primary btn-sm" style={{ marginTop: 10 }} disabled={saving === 'homepage_featured'} aria-busy={saving === 'homepage_featured'} onClick={() => saveJson('homepage_featured', featured)}>Save Featured</button>
       </section>
     </div>

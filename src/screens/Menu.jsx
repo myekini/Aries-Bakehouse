@@ -1,131 +1,168 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Search as SearchIcon } from 'lucide-react';
+import { Link, useParams } from 'react-router-dom';
 import { useCategories, useProducts } from '../hooks/useCatalog.js';
-import { fmtNaira } from '../lib/format.js';
 import ProductCard from '../components/ProductCard.jsx';
-import EmptyState from '../components/EmptyState.jsx';
+import { Button } from '../components/ui/button.jsx';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '../components/ui/input-group.jsx';
+import { Select } from '../components/ui/select.jsx';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '../components/ui/breadcrumb.jsx';
 
 export default function Menu() {
   const { category: categoryFromRoute } = useParams();
   const [category, setCategory] = useState(categoryFromRoute || 'all');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('featured');
-  const [maxPrice, setMaxPrice] = useState(35000);
-  const [recentSlugs, setRecentSlugs] = useState([]);
 
   const { data: categories, loading: categoriesLoading } = useCategories();
   const { data: products, loading: productsLoading } = useProducts();
 
-  // /menu and /menu/:category render the same component instance without
-  // remounting — a `useState` initializer alone only reads the param once,
-  // so a deep link clicked while already on /menu (e.g. from the footer)
-  // left the tab stuck on whatever category was selected before.
   useEffect(() => {
     setCategory(categoryFromRoute || 'all');
   }, [categoryFromRoute]);
 
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem('aries11_recently_viewed');
-      setRecentSlugs(raw ? JSON.parse(raw) : []);
-    } catch (err) {
-      console.error('Recently viewed load failed:', err);
-      setRecentSlugs([]);
-    }
-  }, []);
-
   const filtered = useMemo(() => {
     let list = products || [];
-    if (category !== 'all') list = list.filter((p) => p.category === category);
+    if (category !== 'all') list = list.filter((product) => product.category === category);
     if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      list = list.filter((p) => p.name.toLowerCase().includes(q) || p.category.includes(q));
+      const query = search.trim().toLowerCase();
+      list = list.filter((product) => (
+        product.name.toLowerCase().includes(query)
+        || product.desc?.toLowerCase().includes(query)
+      ));
     }
-    list = list.filter((p) => p.startingPrice === null || p.startingPrice <= maxPrice);
     if (sort === 'price-asc') list = [...list].sort((a, b) => (a.startingPrice ?? Infinity) - (b.startingPrice ?? Infinity));
     if (sort === 'price-desc') list = [...list].sort((a, b) => (b.startingPrice ?? -Infinity) - (a.startingPrice ?? -Infinity));
-    if (sort === 'newest') list = [...list].slice().reverse();
+    if (sort === 'newest') list = [...list].reverse();
     return list;
-  }, [category, search, sort, maxPrice]);
+  }, [category, products, search, sort]);
 
-  const recentlyViewed = useMemo(() => {
-    if (!products || recentSlugs.length === 0) return [];
-    return recentSlugs.map((slug) => products.find((p) => p.slug === slug)).filter(Boolean);
-  }, [products, recentSlugs]);
+  const activeCategory = category === 'all'
+    ? 'All treats'
+    : categories?.find((item) => item.id === category)?.name || formatCategoryName(category);
+
+  function clearFilters() {
+    setCategory('all');
+    setSearch('');
+    setSort('featured');
+  }
 
   return (
-    <div className="container" style={{ padding: '48px 0 96px' }}>
-      <h1 style={{ fontSize: 'clamp(32px, 4vw, 44px)', fontWeight: 800, marginBottom: 32 }}>Full Menu</h1>
+    <div className="menu-page">
+      <section className="container menu-page__intro" aria-labelledby="menu-title">
+        <MenuBreadcrumb category={category} categoryName={activeCategory} />
+        <p className="page-kicker">Made to order in Abeokuta</p>
+        <div className="menu-page__intro-grid">
+          <h1 id="menu-title">The full menu.</h1>
+          <p>Choose your treat, configure the details, and give the kitchen at least 24 hours to make it fresh.</p>
+        </div>
+      </section>
 
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 20, background: 'var(--color-cream)',
-        borderBottom: '1px solid rgba(50,26,23,0.08)', padding: '12px 0 16px', marginBottom: 16,
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
-          <div role="tablist" aria-label="Category" style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 2 }}>
-          {[{ id: 'all', name: 'All' }, ...(categoriesLoading ? [] : categories)].map((c) => (
-            <button
-              key={c.id}
-              role="tab"
-              aria-selected={category === c.id}
-              onClick={() => setCategory(c.id)}
-              style={{
-                padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                background: category === c.id ? 'var(--color-olive)' : 'var(--color-white)',
-                color: category === c.id ? 'var(--color-white)' : 'var(--color-choc)',
-              }}
+      <section className="container menu-controls" aria-label="Menu filters">
+        <div className="menu-tabs" aria-label="Filter by product category">
+          {[{ id: 'all', name: 'All' }, ...(categoriesLoading ? [] : categories || [])].map((item) => (
+            <Button
+              key={item.id}
+              type="button"
+              size="sm"
+              variant={category === item.id ? 'olive' : 'secondary'}
+              aria-pressed={category === item.id}
+              onClick={() => setCategory(item.id)}
+              className="menu-tabs__button"
             >
-              {c.name}
-            </button>
+              {item.name}
+            </Button>
           ))}
+        </div>
+
+        <div className="menu-controls__row">
+          <div className="menu-controls__search">
+            <label className="menu-controls__label" htmlFor="menu-search">Search</label>
+            <InputGroup>
+              <InputGroupInput
+                id="menu-search"
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search the menu"
+              />
+              <InputGroupAddon><SearchIcon size={16} aria-hidden="true" /></InputGroupAddon>
+            </InputGroup>
           </div>
-          <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-            <label className="visually-hidden" htmlFor="menu-search">Search products</label>
-            <input id="menu-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products..." style={{ borderRadius: 999, width: 200 }} />
-            <label className="visually-hidden" htmlFor="menu-sort">Sort by</label>
-            <select id="menu-sort" value={sort} onChange={(e) => setSort(e.target.value)} style={{ borderRadius: 999 }}>
+          <div className="menu-controls__sort">
+            <label className="menu-controls__label" htmlFor="menu-sort">Sort by</label>
+            <Select id="menu-sort" value={sort} onChange={(event) => setSort(event.target.value)}>
               <option value="featured">Featured</option>
-              <option value="price-asc">Price: Low to High</option>
-              <option value="price-desc">Price: High to Low</option>
+              <option value="price-asc">Price: low to high</option>
+              <option value="price-desc">Price: high to low</option>
               <option value="newest">Newest</option>
-            </select>
+            </Select>
           </div>
         </div>
-      </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 40 }}>
-        <label htmlFor="max-price" style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-olive)', whiteSpace: 'nowrap' }}>
-          Up to {fmtNaira(maxPrice)}
-        </label>
-        <input id="max-price" type="range" min="1000" max="35000" step="500" value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value))} style={{ width: 220 }} />
-      </div>
-
-      {productsLoading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
-          {Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 280 }} />)}
+        <div className="menu-results-meta" aria-live="polite">
+          <span>{activeCategory}</span>
+          {!productsLoading && <span>{filtered.length} {filtered.length === 1 ? 'item' : 'items'}</span>}
         </div>
-      ) : filtered.length > 0 ? (
-        <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
-            {filtered.map((p) => <ProductCard key={p.slug} product={p} />)}
+      </section>
+
+      <section className="container menu-results" aria-label={`${activeCategory} products`}>
+        {productsLoading ? (
+          <div className="menu-product-grid" aria-label="Loading products">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <div key={index} className="skeleton menu-product-grid__skeleton" />
+            ))}
           </div>
-          {recentlyViewed.length > 0 && (
-            <div style={{ marginTop: 80 }}>
-              <div style={{ fontSize: 26, fontWeight: 800, marginBottom: 24 }}>Recently Viewed</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 20 }}>
-                {recentlyViewed.map((p) => <ProductCard key={p.slug} product={p} />)}
-              </div>
-            </div>
-          )}
-        </>
-      ) : (
-        <EmptyState
-          title={search ? `No matches for "${search}"` : 'No products in this range'}
-          desc="Try a different category or clear your filters."
-          actionLabel="Browse Full Menu"
-          actionTo="/menu"
-        />
-      )}
+        ) : filtered.length > 0 ? (
+          <div className="menu-product-grid">
+            {filtered.map((product) => <ProductCard key={product.slug} product={product} />)}
+          </div>
+        ) : (
+          <div className="menu-empty">
+            <h2>No treats match those filters.</h2>
+            <p>Try another category or clear the search.</p>
+            <Button type="button" onClick={clearFilters}>Clear filters</Button>
+          </div>
+        )}
+      </section>
     </div>
   );
+}
+
+function MenuBreadcrumb({ category, categoryName }) {
+  const showingCategory = category !== 'all';
+  return (
+    <Breadcrumb className="menu-breadcrumb">
+      <BreadcrumbList>
+        <BreadcrumbItem>
+          <BreadcrumbLink render={<Link to="/" />}>Home</BreadcrumbLink>
+        </BreadcrumbItem>
+        <BreadcrumbSeparator />
+        <BreadcrumbItem>
+          {showingCategory
+            ? <BreadcrumbLink render={<Link to="/menu" />}>Menu</BreadcrumbLink>
+            : <BreadcrumbPage>Menu</BreadcrumbPage>}
+        </BreadcrumbItem>
+        {showingCategory && (
+          <>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem><BreadcrumbPage>{categoryName}</BreadcrumbPage></BreadcrumbItem>
+          </>
+        )}
+      </BreadcrumbList>
+    </Breadcrumb>
+  );
+}
+
+function formatCategoryName(value) {
+  return value
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

@@ -1,44 +1,88 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { CheckCircle2, CircleAlert } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import AuthShell from '../components/account/AuthShell.jsx';
+import PasswordField from '../components/account/PasswordField.jsx';
+import { Button } from '../components/ui/button.jsx';
+import { Alert, AlertDescription } from '../components/ui/alert.jsx';
 import { supabase } from '../lib/supabaseClient.js';
 
-// Landing page for the link sent by supabase.auth.resetPasswordForEmail()
-// (see Account.jsx). Supabase's client detects the recovery token in the
-// URL and establishes a session automatically before this page mounts, so
-// all that's needed here is to collect the new password and call
-// updateUser().
 export default function ResetPassword() {
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
-  const [status, setStatus] = useState('idle'); // idle | saving | done | error
+  const [confirmation, setConfirmation] = useState('');
+  const [status, setStatus] = useState('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setErrorMsg('');
+
+    if (password !== confirmation) {
+      setStatus('error');
+      setErrorMsg('The passwords do not match.');
+      return;
+    }
+
     setStatus('saving');
     const { error } = await supabase.auth.updateUser({ password });
-    if (error) { setStatus('error'); setErrorMsg(error.message); return; }
+    if (error) {
+      setStatus('error');
+      setErrorMsg(error.message);
+      return;
+    }
+
     setStatus('done');
-    setTimeout(() => navigate('/account'), 1500);
+    window.setTimeout(() => navigate('/account'), 1200);
   }
 
   return (
-    <div className="container" style={{ padding: '64px 0 96px', maxWidth: 440 }}>
-      <h1 style={{ fontSize: 32, fontWeight: 800, marginBottom: 24 }}>Set a New Password</h1>
+    <AuthShell
+      eyebrow="Account security"
+      title="Set a new password"
+      description="Choose a password you have not used for this account before."
+      footer={<p><Link to="/account">Return to sign in</Link></p>}
+    >
       {status === 'done' ? (
-        <div style={{ fontWeight: 700, color: 'var(--color-olive)' }}>Password updated — redirecting to sign in.</div>
+        <div className="auth-form">
+          <Alert variant="success"><CheckCircle2 size={17} aria-hidden="true" /><AlertDescription>Your password has been updated. Redirecting to sign in.</AlertDescription></Alert>
+        </div>
       ) : (
-        <form onSubmit={handleSubmit} className="card" style={{ padding: 28, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div>
-            <label className="visually-hidden" htmlFor="new-password">New password</label>
-            <input id="new-password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="New password" style={{ width: '100%' }} />
-          </div>
-          {status === 'error' && <div style={{ fontSize: 13, color: 'var(--color-error)' }} role="alert">{errorMsg}</div>}
-          <button type="submit" className="btn btn-primary" disabled={status === 'saving'} style={{ width: '100%' }}>
-            {status === 'saving' ? 'Saving…' : 'Update Password'}
-          </button>
+        <form onSubmit={handleSubmit} className="auth-form">
+          <PasswordField
+            id="new-password"
+            name="new-password"
+            label="New password"
+            autoComplete="new-password"
+            minLength={6}
+            required
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            hint="Use at least 6 characters."
+          />
+          <PasswordField
+            id="confirm-password"
+            name="confirm-password"
+            label="Confirm new password"
+            autoComplete="new-password"
+            minLength={6}
+            required
+            value={confirmation}
+            onChange={(event) => setConfirmation(event.target.value)}
+          />
+          {status === 'error' && (
+            <Alert variant="destructive"><CircleAlert size={17} aria-hidden="true" /><AlertDescription>{errorMsg}</AlertDescription></Alert>
+          )}
+          <Button
+            type="submit"
+            aria-busy={status === 'saving'}
+            disabled={status === 'saving'}
+            className="auth-form__submit"
+          >
+            Update password
+          </Button>
         </form>
       )}
-    </div>
+    </AuthShell>
   );
 }

@@ -4,6 +4,10 @@
 // for the React-facing layer).
 
 import { supabase } from './supabaseClient.js';
+import {
+  RETIRED_BANANA_BREAD_COLLECTION,
+  normalizeCatalogImage,
+} from './media.js';
 
 const AVAILABILITY_LABEL = {
   in_stock: 'In Stock',
@@ -24,6 +28,68 @@ const TOPPING_COLORS = {
   raisins: '#93412E',
 };
 
+const BANANA_TOPPING_ICONS = {
+  plain: '/uploads/selectors/aries11-bananabread-plain.webp',
+  oreos: '/uploads/selectors/aries11-bananabread-oreos.webp',
+  'double-chocolate': '/uploads/selectors/aries11-bananabread-doublechocolate.webp',
+  coconut: '/uploads/selectors/aries11-bananabread-coconut.webp',
+  'nuts-crunch': '/uploads/selectors/aries11-bananabread-nutscrunch.webp',
+  biscoff: '/uploads/selectors/aries11-bananabread-biscoff.webp',
+  raisins: '/uploads/selectors/aries11-bananabread-raisins.webp',
+};
+
+const BROWNIE_FLAVOUR_IMAGES = {
+  biscoff: '/uploads/aries11-brownie-biscoff-single.webp',
+  oreos: '/uploads/aries11-brownie-oreos-single.webp',
+  'coconut-crunch': '/uploads/aries11-brownie-coconutcrunch-single.webp',
+  'dark-chocolate': '/uploads/aries11-brownie-darkchocolate-single.webp',
+  'white-chocolate': '/uploads/aries11-brownie-whitechocolate-single.webp',
+};
+
+const BROWNIE_FLAVOUR_ICONS = {
+  biscoff: '/uploads/selectors/aries11-brownie-biscoff.webp',
+  oreos: '/uploads/selectors/aries11-brownie-oreos.webp',
+  'coconut-crunch': '/uploads/selectors/aries11-brownie-coconutcrunch.webp',
+  'dark-chocolate': '/uploads/selectors/aries11-brownie-darkchocolate.webp',
+  'white-chocolate': '/uploads/selectors/aries11-brownie-whitechocolate.webp',
+};
+
+const PASTRY_OPTION_IMAGES = {
+  'suya-pie': '/uploads/aries11-pastries-suyapie-single.webp',
+  'fish-pie': '/uploads/aries11-pastries-fishpie-single.webp',
+  'sausage-rolls': '/uploads/aries11-pastries-sausageroll-single.webp',
+  mixed: '/uploads/aries11-pastries-mixedtray-complete.webp',
+};
+
+const PASTRY_OPTION_ICONS = {
+  'suya-pie': '/uploads/selectors/aries11-pastry-suyapie.webp',
+  'fish-pie': '/uploads/selectors/aries11-pastry-fishpie.webp',
+  'sausage-rolls': '/uploads/selectors/aries11-pastry-sausageroll.webp',
+  mixed: '/uploads/selectors/aries11-pastry-mixed.webp',
+};
+
+const SMALL_CHOPS_IMAGES = {
+  'small-platter': '/uploads/aries11-smallchops-platter-small.webp',
+};
+
+const SMALL_CHOPS_ICONS = {
+  'solo-survivor': '/uploads/selectors/aries11-smallchops-solosurvivor.webp',
+  'small-platter': '/uploads/selectors/aries11-smallchops-small.webp',
+  'large-platter': '/uploads/selectors/aries11-smallchops-large.webp',
+  'chop-responsibly': '/uploads/selectors/aries11-smallchops-chopresponsibly.webp',
+};
+
+const CAKE_FLAVOUR_ICONS = {
+  'cake-parfait': {
+    chocolate: '/uploads/selectors/aries11-parfait-chocolate.webp',
+    'red-velvet': '/uploads/selectors/aries11-parfait-redvelvet.webp',
+  },
+  'ice-cream-cake-twist': {
+    chocolate: '/uploads/selectors/aries11-icecreamtwist-chocolate.webp',
+    'red-velvet': '/uploads/selectors/aries11-icecreamtwist-redvelvet.webp',
+  },
+};
+
 const LAUNCH_FEATURED = [
   { slug: 'small-chops-platter', tag: 'Solo Survivor Platter' },
   { slug: 'signature-banana-bread', tag: 'Medium Banana Bread' },
@@ -39,8 +105,10 @@ const LAUNCH_BESTSELLERS = [
 ];
 
 function mapProductRow(row) {
-  const primaryImage = row.product_image?.find((i) => i.is_primary) || row.product_image?.[0];
+  const usableImages = (row.product_image || []).filter((image) => image.url !== RETIRED_BANANA_BREAD_COLLECTION);
+  const primaryImage = usableImages.find((i) => i.is_primary) || usableImages[0];
   const galleryImages = (row.product_image || [])
+    .filter((image) => image.url !== RETIRED_BANANA_BREAD_COLLECTION)
     .map((i) => ({ url: i.url, alt: i.alt_text || row.name, isPrimary: i.is_primary }))
     .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
   return {
@@ -52,7 +120,7 @@ function mapProductRow(row) {
     startingPrice: row.base_price,
     priceFrom: row.price_from,
     desc: row.description,
-    image: primaryImage?.url || null,
+    image: normalizeCatalogImage(primaryImage?.url, row.product_category?.slug),
     galleryImages,
     badge: row.badge,
     availability: AVAILABILITY_LABEL[row.availability] || row.availability,
@@ -73,7 +141,12 @@ export async function getCategories() {
     .select('id, slug, name, description, image_url, sort_order')
     .order('sort_order');
   if (error) throw error;
-  return data.map((c) => ({ id: c.slug, name: c.name, desc: c.description, image: c.image_url }));
+  return data.map((c) => ({
+    id: c.slug,
+    name: c.slug === 'brownies-cookies' ? 'Brownies' : c.name,
+    desc: c.slug === 'brownies-cookies' ? 'Fudgy boxes in five rich flavours.' : c.description,
+    image: normalizeCatalogImage(c.image_url, c.slug),
+  }));
 }
 
 export async function getProducts() {
@@ -83,10 +156,11 @@ export async function getProducts() {
     .eq('is_active', true)
     .order('sort_order');
   if (error) throw error;
-  return data.map(mapProductRow);
+  return data.map(mapProductRow).filter((product) => product.slug !== 'cookie-pack');
 }
 
 export async function findProduct(slug) {
+  if (slug === 'cookie-pack') return null;
   const { data, error } = await supabase
     .from('product')
     .select(PRODUCT_SELECT)
@@ -201,40 +275,65 @@ export async function getVariantRules(productSlug, configurator) {
         mixedPrice: mixedByValue[v.variant_value] ?? null,
       })),
       toppings: byType('topping').map((v) => ({
-        id: v.variant_value, label: v.label, image: v.image_url, color: TOPPING_COLORS[v.variant_value] || '#D8CBBE',
+        id: v.variant_value,
+        label: v.label,
+        image: v.image_url,
+        icon: BANANA_TOPPING_ICONS[v.variant_value],
+        color: TOPPING_COLORS[v.variant_value] || '#D8CBBE',
       })),
       mixedAllowedSizes: byType('size').filter((v) => v.is_mixed_allowed).map((v) => v.variant_value),
-      mixedImage: product.image,
+      mixedImage: '/uploads/aries11-bananabread-topping-mixed.webp',
     };
   }
 
   if (configurator === 'brownies') {
     return {
       sizes: byType('size').map((v) => ({ id: v.variant_value, label: v.label, price: v.price_override, image: v.image_url })),
-      flavours: byType('flavour').map((v) => ({ id: v.variant_value, label: v.label })),
+      flavours: byType('flavour').map((v) => ({
+        id: v.variant_value,
+        label: v.label,
+        image: v.image_url || BROWNIE_FLAVOUR_IMAGES[v.variant_value],
+        icon: BROWNIE_FLAVOUR_ICONS[v.variant_value],
+      })),
     };
   }
 
   if (configurator === 'small-chops') {
     return {
       platters: byType('platter').map((v) => ({
-        id: v.variant_value, label: v.label, price: v.price_override, desc: v.description, image: v.image_url,
+        id: v.variant_value,
+        label: v.label,
+        price: v.price_override,
+        desc: v.description,
+        image: SMALL_CHOPS_IMAGES[v.variant_value] || v.image_url,
+        icon: SMALL_CHOPS_ICONS[v.variant_value],
       })),
     };
   }
 
   if (configurator === 'pastries') {
     return {
-      options: byType('option').map((v) => ({ id: v.variant_value, label: v.label, price: v.price_override, image: v.image_url })),
-      pieceCountNote: 'Piece count: TBC',
+      options: byType('option').map((v) => ({
+        id: v.variant_value,
+        label: v.label,
+        price: v.price_override,
+        image: PASTRY_OPTION_IMAGES[v.variant_value] || v.image_url,
+        icon: PASTRY_OPTION_ICONS[v.variant_value],
+      })),
+      pieceCountNote: 'The kitchen confirms the final piece count for your selected tray.',
     };
   }
 
   if (configurator === 'cake') {
     return {
-      flavours: byType('flavour').map((v) => ({ id: v.variant_value, label: v.label, image: v.image_url })),
+      flavours: byType('flavour').map((v) => ({
+        id: v.variant_value,
+        label: v.label,
+        image: v.image_url,
+        icon: CAKE_FLAVOUR_ICONS[productSlug]?.[v.variant_value],
+      })),
       sizes: byType('size').map((v) => ({ id: v.variant_value, label: v.label, price: v.price_override })),
-      priceNote: 'Pricing TBC — the team will confirm before payment.',
+      priceNote: 'The kitchen confirms the price before payment.',
     };
   }
 

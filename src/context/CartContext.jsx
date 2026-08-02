@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { supabase } from '../lib/supabaseClient.js';
 import { ensureSession } from './AuthContext.jsx';
 import { trackEvent } from '../lib/analytics.js';
+import { toast } from '../components/ui/toast.jsx';
 
 const CartContext = createContext(null);
 
@@ -20,7 +21,6 @@ function rowToItem(row) {
 
 export function CartProvider({ children }) {
   const [items, setItems] = useState([]);
-  const [toast, setToast] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const cartIdRef = useRef(null);
   const customerIdRef = useRef(null);
@@ -68,12 +68,6 @@ export function CartProvider({ children }) {
     })();
   }, []);
 
-  const showToast = useCallback((msg, type = 'success') => {
-    setToast({ msg, type });
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(() => setToast(null), 2200);
-  }, []);
-
   const addToCart = useCallback((item, opts = {}) => {
     setItems((prev) => {
       const existing = prev.find((i) => i.id === item.id);
@@ -82,7 +76,7 @@ export function CartProvider({ children }) {
       }
       return [...prev, { ...item, qty: item.qty || 1 }];
     });
-    if (!opts.silent) showToast(`Added ${item.name} to cart`);
+    if (!opts.silent) toast.success('Added to cart', { description: item.name });
     if (opts.openDrawer) setDrawerOpen(true);
     trackEvent('product_added_to_cart', { productId: item.productId, name: item.name, price: item.price, qty: item.qty || 1 });
 
@@ -109,10 +103,10 @@ export function CartProvider({ children }) {
         }
       } catch (err) {
         console.error('addToCart sync failed:', err);
-        showToast('Could not save to cart - check your connection', 'error');
+        toast.error('Cart was not saved', { description: 'Check your connection and try again.' });
       }
     })();
-  }, [showToast]);
+  }, []);
 
   const removeFromCart = useCallback((id) => {
     let removedDbId = null;
@@ -124,10 +118,13 @@ export function CartProvider({ children }) {
     trackEvent('cart_updated', { action: 'remove', itemId: id });
     if (removedDbId) {
       supabase.from('cart_item').delete().eq('id', removedDbId).then(({ error }) => {
-        if (error) { console.error('removeFromCart sync failed:', error); showToast('Could not sync removal', 'error'); }
+        if (error) {
+          console.error('removeFromCart sync failed:', error);
+          toast.error('Cart removal was not saved', { description: 'Refresh and try again.' });
+        }
       });
     }
-  }, [showToast]);
+  }, []);
 
   const updateQty = useCallback((id, qty) => {
     let dbId = null;
@@ -161,6 +158,8 @@ export function CartProvider({ children }) {
 
   const count = useMemo(() => items.reduce((s, i) => s + i.qty, 0), [items]);
   const subtotal = useMemo(() => items.reduce((s, i) => s + (i.price || 0) * i.qty, 0), [items]);
+  const openDrawer = useCallback(() => setDrawerOpen(true), []);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
   // Cake Parfait / Ice Cream Twist have no confirmed price yet (spec §7) — a
   // cart containing one of these must not present `subtotal` as if it were
   // complete. Pages that show a total should also show this flag's note.
@@ -169,8 +168,7 @@ export function CartProvider({ children }) {
   const value = {
     items, count, subtotal, hasUnpricedItems,
     addToCart, removeFromCart, updateQty, clearCart,
-    toast, showToast,
-    drawerOpen, openDrawer: () => setDrawerOpen(true), closeDrawer: () => setDrawerOpen(false),
+    drawerOpen, openDrawer, closeDrawer,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

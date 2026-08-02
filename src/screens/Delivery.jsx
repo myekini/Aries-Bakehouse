@@ -1,36 +1,36 @@
 export default function Delivery() {
   return (
-    <div className="container" style={{ padding: '64px 0 96px', maxWidth: 720 }}>
-      <h1 style={{ fontSize: 'clamp(32px, 4vw, 44px)', fontWeight: 800, marginBottom: 32 }}>Delivery Information</h1>
+    <div className="container content-page">
+      <header className="content-page__header">
+        <p className="page-kicker">Ordering support</p>
+        <h1>Delivery information</h1>
+        <p>What to expect when collecting from the bakehouse or arranging local delivery in Abeokuta.</p>
+      </header>
 
-      <div className="card" style={{ padding: 28, marginBottom: 20 }}>
-        <SectionTitle>Areas Covered</SectionTitle>
-        <p style={bodyText}>We currently deliver across Abeokuta. Delivery zones and fees are being finalised — TBC pending confirmation.</p>
-      </div>
+      <div className="content-page__sections">
+        <article>
+          <h2>Areas covered</h2>
+          <p>We currently offer local delivery across Abeokuta. Availability depends on the address and preferred delivery time.</p>
+        </article>
 
-      <div className="card" style={{ padding: 28, marginBottom: 20 }}>
-        <SectionTitle>Fees &amp; Timing</SectionTitle>
-        <p style={bodyText}>
-          Delivery fees are confirmed at checkout once your address is reviewed (TBC pending brand confirmation of zones/pricing).
-          All orders — pickup or delivery — require at least 24 hours' notice.
-        </p>
-      </div>
+        <article>
+          <h2>Fees and timing</h2>
+          <p>
+          Delivery fees are confirmed after the team reviews your checkout address. You will know the fee before delivery is finalised.
+          All pickup and delivery orders require at least 24 hours' notice.
+          </p>
+        </article>
 
-      <div className="card" style={{ padding: 28, marginBottom: 20 }}>
-        <SectionTitle>Pickup Address</SectionTitle>
-        <p style={bodyText}>Aries 11 Bakehouse, Abeokuta, Nigeria — the exact address is confirmed by WhatsApp once your order is placed.</p>
-      </div>
+        <article>
+          <h2>Pickup address</h2>
+          <p>Aries 11 Bakehouse, Abeokuta, Nigeria. The exact address is confirmed after your website order is placed.</p>
+        </article>
 
-      <div className="card" style={{ padding: 28 }}>
-        <SectionTitle>24-Hour Preorder Policy</SectionTitle>
-        <p style={bodyText}>Everything is made to order, not held in stock — this is why the checkout date picker only allows dates 24 hours or more from now.</p>
+        <article>
+          <h2>24-hour preorder policy</h2>
+          <p>Everything is made to order, not held in stock. This is why the checkout date picker only allows dates 24 hours or more from now.</p>
+        </article>
       </div>
     </div>
   );
 }
-
-function SectionTitle({ children }) {
-  return <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-olive)', marginBottom: 12 }}>{children}</div>;
-}
-
-const bodyText = { fontSize: 15, color: 'var(--color-text-muted)', lineHeight: 1.7, margin: 0 };

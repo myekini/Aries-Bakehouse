@@ -1,13 +1,14 @@
+import { PackageOpen } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-export default function EmptyState({ title, desc, actionLabel, actionTo }) {
+export default function EmptyState({ icon: Icon = PackageOpen, title, desc, actionLabel, actionTo, children }) {
   return (
-    <div style={{ textAlign: 'center', padding: '80px 0' }}>
-      <div style={{ fontWeight: 700, fontSize: 20 }}>{title}</div>
-      {desc && <div style={{ fontSize: 14, color: 'var(--color-text-muted)', marginTop: 10 }}>{desc}</div>}
-      {actionLabel && actionTo && (
-        <Link to={actionTo} className="btn btn-primary" style={{ display: 'inline-flex', marginTop: 24 }}>{actionLabel}</Link>
-      )}
+    <div className="empty-state">
+      <span className="empty-state__icon"><Icon size={22} aria-hidden="true" /></span>
+      <h2>{title}</h2>
+      {desc && <p>{desc}</p>}
+      {actionLabel && actionTo && <Link to={actionTo} className="btn btn-primary">{actionLabel}</Link>}
+      {children}
     </div>
   );
 }

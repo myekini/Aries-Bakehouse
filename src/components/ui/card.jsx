@@ -15,3 +15,11 @@ export function CardContent({ className, ...props }) {
 export function CardTitle({ className, ...props }) {
   return <div className={cn('ui-card-title', className)} {...props} />;
 }
+
+export function CardDescription({ className, ...props }) {
+  return <div className={cn('ui-card-description', className)} {...props} />;
+}
+
+export function CardFooter({ className, ...props }) {
+  return <div className={cn('ui-card-footer', className)} {...props} />;
+}

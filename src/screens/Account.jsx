@@ -1,12 +1,20 @@
-import { useEffect, useState } from 'react';
+import { cloneElement, isValidElement, useEffect, useState } from 'react';
+import { CheckCircle2, CircleAlert, Info } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import AuthShell from '../components/account/AuthShell.jsx';
+import PasswordField from '../components/account/PasswordField.jsx';
+import { Button } from '../components/ui/button.jsx';
+import { Card } from '../components/ui/card.jsx';
+import { Input } from '../components/ui/input.jsx';
+import { Label } from '../components/ui/label.jsx';
+import { Textarea } from '../components/ui/textarea.jsx';
+import { toast } from '../components/ui/toast.jsx';
+import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert.jsx';
+import { ConfirmAlertDialog } from '../components/ui/alert-dialog.jsx';
 import { supabase } from '../lib/supabaseClient.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { useCart } from '../context/CartContext.jsx';
 import { trackEvent } from '../lib/analytics.js';
 
-// Guest checkout is, and must remain, the default path (spec §8/§9) - this
-// page is an optional accelerator, never a gate in front of Checkout.
 export default function Account() {
   const navigate = useNavigate();
   const { session, customer, isRealAccount, signOut } = useAuth();
@@ -15,27 +23,44 @@ export default function Account() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [status, setStatus] = useState('idle'); // idle | working | error | reset-sent
+  const [status, setStatus] = useState('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
   if (isRealAccount) {
     return <AccountDashboard customer={customer} signOut={signOut} />;
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  const working = status === 'working';
+  const signingIn = mode === 'signin';
+
+  function switchMode(nextMode) {
+    setMode(nextMode);
+    setStatus('idle');
+    setErrorMsg('');
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
     setStatus('working');
     setErrorMsg('');
 
     if (mode === 'signup') {
       const isAnonymous = session?.user?.is_anonymous;
-      const { error } = isAnonymous
-        ? await supabase.auth.updateUser({ email, password })
-        : await supabase.auth.signUp({ email, password });
+      const result = isAnonymous
+        ? await supabase.auth.updateUser({ email: email.trim(), password })
+        : await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { data: { name: name.trim(), phone: phone.trim() } },
+        });
 
-      if (error) { setStatus('error'); setErrorMsg(error.message); return; }
+      if (result.error) {
+        setStatus('error');
+        setErrorMsg(result.error.message);
+        return;
+      }
 
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = result.data?.user;
       if (user) {
         await supabase.from('customer').update({
           name: name.trim() || null,
@@ -44,95 +69,201 @@ export default function Account() {
           is_guest: false,
         }).eq('auth_user_id', user.id);
       }
+
       trackEvent('customer_account_created', { email: email.trim() });
+      if (!isAnonymous && !result.data?.session) {
+        setStatus('confirm-email');
+        return;
+      }
       navigate('/account/orders');
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) { setStatus('error'); setErrorMsg(error.message); return; }
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    if (error) {
+      setStatus('error');
+      setErrorMsg(error.message);
+      return;
+    }
     navigate('/account/orders');
   }
 
   async function handleForgotPassword() {
-    if (!email.trim()) { setStatus('error'); setErrorMsg('Enter your email above first.'); return; }
+    if (!email.trim()) {
+      setStatus('error');
+      setErrorMsg('Enter your email address first.');
+      return;
+    }
+
     setStatus('working');
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    setErrorMsg('');
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/account/reset-password`,
     });
-    if (error) { setStatus('error'); setErrorMsg(error.message); return; }
+    if (error) {
+      setStatus('error');
+      setErrorMsg(error.message);
+      return;
+    }
     setStatus('reset-sent');
   }
 
   return (
-    <div className="container" style={{ padding: '64px 0 96px', maxWidth: 440 }}>
-      <h1 style={{ fontSize: 32, fontWeight: 800, marginBottom: 8 }}>{mode === 'signin' ? 'Sign In' : 'Create Account'}</h1>
-      <p style={{ fontSize: 14, color: 'var(--color-text-muted)', marginBottom: 28 }}>
-        Accounts make reordering faster, but checkout stays open to guests -{' '}
-        <Link to="/checkout" style={{ color: 'var(--color-cocoa)', fontWeight: 700 }}>continue as guest</Link>.
-      </p>
-
-      <form onSubmit={handleSubmit} className="card" style={{ padding: 28, display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {mode === 'signup' && (
-          <>
-            <div>
-              <label className="visually-hidden" htmlFor="acc-name">Full name</label>
-              <input id="acc-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" style={{ width: '100%' }} />
-            </div>
-            <div>
-              <label className="visually-hidden" htmlFor="acc-phone">Phone number</label>
-              <input id="acc-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" style={{ width: '100%' }} />
-            </div>
-          </>
-        )}
-        <div>
-          <label className="visually-hidden" htmlFor="acc-email">Email</label>
-          <input id="acc-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className={status === 'error' ? 'field-error' : undefined} style={{ width: '100%' }} />
-        </div>
-        <div>
-          <label className="visually-hidden" htmlFor="acc-password">Password</label>
-          <input id="acc-password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" style={{ width: '100%' }} />
-        </div>
-
-        {status === 'error' && <div className="field-message field-message--error" role="alert">{errorMsg}</div>}
-        {status === 'reset-sent' && <div className="field-message field-message--success" role="status">Check your email for a reset link.</div>}
-
-        <button type="submit" className="btn btn-primary" aria-busy={status === 'working'} disabled={status === 'working'} style={{ width: '100%' }}>
-          {mode === 'signin' ? 'Sign In' : 'Create Account'}
+    <AuthShell
+      title={signingIn ? 'Welcome back' : 'Create your account'}
+      description={signingIn
+        ? 'Sign in to view orders and use your saved delivery details.'
+        : 'Save delivery details and keep your order history in one place.'}
+      footer={(
+        <p>
+          Prefer guest checkout? <Link to="/checkout">Continue to checkout</Link>
+        </p>
+      )}
+    >
+      <div className="auth-mode-tabs" role="tablist" aria-label="Account access">
+        <button
+          id="signin-tab"
+          type="button"
+          role="tab"
+          aria-controls="account-access-panel"
+          aria-selected={signingIn}
+          className={signingIn ? 'is-active' : ''}
+          onClick={() => switchMode('signin')}
+        >
+          Sign in
         </button>
-        {mode === 'signin' && (
-          <button type="button" onClick={handleForgotPassword} style={{ background: 'none', border: 'none', fontSize: 13, color: 'var(--color-cocoa)', fontWeight: 700, cursor: 'pointer' }}>
-            Forgot password?
-          </button>
+        <button
+          id="signup-tab"
+          type="button"
+          role="tab"
+          aria-controls="account-access-panel"
+          aria-selected={!signingIn}
+          className={!signingIn ? 'is-active' : ''}
+          onClick={() => switchMode('signup')}
+        >
+          Create account
+        </button>
+      </div>
+
+      <form
+        id="account-access-panel"
+        role="tabpanel"
+        aria-labelledby={signingIn ? 'signin-tab' : 'signup-tab'}
+        onSubmit={handleSubmit}
+        className="auth-form"
+      >
+        {!signingIn && (
+          <div className="auth-form__row">
+            <AuthField label="Full name" id="account-name">
+              <Input
+                id="account-name"
+                name="name"
+                autoComplete="name"
+                required
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </AuthField>
+            <AuthField label="Phone number" id="account-phone">
+              <Input
+                id="account-phone"
+                name="tel"
+                type="tel"
+                autoComplete="tel"
+                required
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+              />
+            </AuthField>
+          </div>
         )}
+
+        <AuthField label="Email address" id="account-email">
+          <Input
+            id="account-email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className={status === 'error' ? 'field-error' : ''}
+          />
+        </AuthField>
+
+        <PasswordField
+          id="account-password"
+          name="password"
+          label="Password"
+          autoComplete={signingIn ? 'current-password' : 'new-password'}
+          minLength={6}
+          required
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          hint={signingIn ? undefined : 'Use at least 6 characters.'}
+          action={signingIn ? (
+            <button
+              type="button"
+              className="auth-text-action"
+              onClick={handleForgotPassword}
+              disabled={working}
+            >
+              Forgot password?
+            </button>
+          ) : undefined}
+        />
+
+        {status === 'error' && (
+          <Alert variant="destructive"><CircleAlert size={17} aria-hidden="true" /><AlertDescription>{errorMsg}</AlertDescription></Alert>
+        )}
+        {status === 'reset-sent' && (
+          <Alert><Info size={17} aria-hidden="true" /><AlertDescription>Check your inbox for a password reset link.</AlertDescription></Alert>
+        )}
+        {status === 'confirm-email' && (
+          <Alert variant="success"><CheckCircle2 size={17} aria-hidden="true" /><AlertDescription>Check your inbox to confirm your email address, then sign in.</AlertDescription></Alert>
+        )}
+
+        <Button
+          type="submit"
+          aria-busy={working}
+          disabled={working || status === 'confirm-email'}
+          className="auth-form__submit"
+        >
+          {signingIn ? 'Sign in' : 'Create account'}
+        </Button>
       </form>
-
-      <div style={{ textAlign: 'center', marginTop: 20, fontSize: 14 }}>
-        {mode === 'signin' ? (
-          <>Don't have an account? <button onClick={() => { setMode('signup'); setStatus('idle'); }} style={linkBtn}>Sign up</button></>
-        ) : (
-          <>Already have an account? <button onClick={() => { setMode('signin'); setStatus('idle'); }} style={linkBtn}>Sign in</button></>
-        )}
-      </div>
-
-      <div style={{ textAlign: 'center', marginTop: 12, fontSize: 12, color: 'var(--color-text-faint)' }}>
-        Phone OTP can be added later; email/password is the supported build path today.
-      </div>
-    </div>
+    </AuthShell>
   );
 }
 
 function AccountDashboard({ customer, signOut }) {
-  const { showToast } = useCart();
   const [profile, setProfile] = useState({
     name: customer?.name || '',
     email: customer?.email || '',
     phone: customer?.phone || '',
   });
   const [addresses, setAddresses] = useState(null);
-  const [addressForm, setAddressForm] = useState({ id: null, label: '', address: '', isDefault: false });
+  const [addressForm, setAddressForm] = useState({
+    id: null,
+    label: '',
+    address: '',
+    isDefault: false,
+  });
   const [profileStatus, setProfileStatus] = useState('idle');
+  const [profileError, setProfileError] = useState('');
   const [addressStatus, setAddressStatus] = useState('idle');
+  const [addressError, setAddressError] = useState('');
+
+  useEffect(() => {
+    setProfile({
+      name: customer?.name || '',
+      email: customer?.email || '',
+      phone: customer?.phone || '',
+    });
+  }, [customer?.email, customer?.name, customer?.phone]);
 
   useEffect(() => {
     loadAddresses();
@@ -140,7 +271,10 @@ function AccountDashboard({ customer, signOut }) {
   }, [customer?.id]);
 
   async function loadAddresses() {
-    if (!customer?.id) return;
+    if (!customer?.id) {
+      setAddresses([]);
+      return;
+    }
     const { data, error } = await supabase
       .from('address')
       .select('*')
@@ -150,30 +284,41 @@ function AccountDashboard({ customer, signOut }) {
     setAddresses(error ? [] : data);
   }
 
-  async function saveProfile(e) {
-    e.preventDefault();
+  async function saveProfile(event) {
+    event.preventDefault();
     setProfileStatus('saving');
+    setProfileError('');
     const { error } = await supabase.from('customer').update({
       name: profile.name.trim() || null,
-      email: profile.email.trim() || null,
       phone: profile.phone.trim() || null,
     }).eq('id', customer.id);
     if (error) {
       setProfileStatus('error');
-      showToast(error.message, 'error');
+      setProfileError(error.message);
       return;
     }
     setProfileStatus('saved');
-    showToast('Profile saved');
+    toast.success('Profile saved');
   }
 
-  async function saveAddress(e) {
-    e.preventDefault();
+  async function saveAddress(event) {
+    event.preventDefault();
     setAddressStatus('saving');
-    const shouldDefault = addressForm.isDefault || !addresses || addresses.length === 0;
+    setAddressError('');
+    const shouldDefault = addressForm.isDefault || !addresses?.length;
+
     if (shouldDefault) {
-      await supabase.from('address').update({ is_default: false }).eq('customer_id', customer.id);
+      const { error } = await supabase
+        .from('address')
+        .update({ is_default: false })
+        .eq('customer_id', customer.id);
+      if (error) {
+        setAddressStatus('error');
+        setAddressError(error.message);
+        return;
+      }
     }
+
     const payload = {
       customer_id: customer.id,
       label: addressForm.label.trim() || null,
@@ -183,124 +328,255 @@ function AccountDashboard({ customer, signOut }) {
     const result = addressForm.id
       ? await supabase.from('address').update(payload).eq('id', addressForm.id)
       : await supabase.from('address').insert(payload);
+
     if (result.error) {
       setAddressStatus('error');
-      showToast(result.error.message, 'error');
+      setAddressError(result.error.message);
       return;
     }
-    setAddressForm({ id: null, label: '', address: '', isDefault: false });
+
+    resetAddressForm();
     setAddressStatus('idle');
-    showToast('Address saved');
+    toast.success('Address saved');
     loadAddresses();
   }
 
   async function removeAddress(address) {
     const { error } = await supabase.from('address').delete().eq('id', address.id);
-    if (error) { showToast(error.message, 'error'); return; }
-    showToast('Address removed', 'info');
+    if (error) {
+      toast.error('Address was not removed', { description: error.message });
+      return;
+    }
+    toast.info('Address removed');
     loadAddresses();
   }
 
   async function makeDefault(address) {
-    await supabase.from('address').update({ is_default: false }).eq('customer_id', customer.id);
-    const { error } = await supabase.from('address').update({ is_default: true }).eq('id', address.id);
-    if (error) { showToast(error.message, 'error'); return; }
-    showToast('Default address updated');
+    const { error: clearError } = await supabase
+      .from('address')
+      .update({ is_default: false })
+      .eq('customer_id', customer.id);
+    if (clearError) {
+      toast.error('Default address was not changed', { description: clearError.message });
+      return;
+    }
+    const { error } = await supabase
+      .from('address')
+      .update({ is_default: true })
+      .eq('id', address.id);
+    if (error) {
+      toast.error('Default address was not changed', { description: error.message });
+      return;
+    }
+    toast.success('Default address updated');
     loadAddresses();
   }
 
+  function editAddress(address) {
+    setAddressForm({
+      id: address.id,
+      label: address.label || '',
+      address: address.address_text,
+      isDefault: address.is_default,
+    });
+  }
+
+  function resetAddressForm() {
+    setAddressForm({ id: null, label: '', address: '', isDefault: false });
+    setAddressStatus('idle');
+    setAddressError('');
+  }
+
   return (
-    <div className="container" style={{ padding: '56px 0 96px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 24, alignItems: 'flex-end', marginBottom: 32, flexWrap: 'wrap' }}>
-        <div>
-          <h1 style={{ fontSize: 'clamp(32px, 4vw, 44px)', fontWeight: 800, margin: 0 }}>Your Account</h1>
-          <div style={{ fontSize: 14, color: 'var(--color-text-muted)', marginTop: 8 }}>Manage profile details, saved addresses, and repeat orders.</div>
-        </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <Link to="/account/orders" className="btn btn-primary btn-sm">Order History</Link>
-          <button onClick={() => signOut()} className="btn btn-secondary btn-sm">Logout</button>
-        </div>
-      </div>
+    <section className="account-page">
+      <div className="container">
+        <header className="account-page__header">
+          <div>
+            <p className="account-page__eyebrow">Customer account</p>
+            <h1>Your account</h1>
+            <p>{customer?.email}</p>
+          </div>
+          <div className="account-page__actions">
+            {customer?.role === 'admin' && (
+              <Button asChild size="sm">
+                <Link to="/admin">Admin dashboard</Link>
+              </Button>
+            )}
+            <Button asChild variant="secondary" size="sm">
+              <Link to="/account/orders">Order history</Link>
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={signOut}>
+              Sign out
+            </Button>
+          </div>
+        </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24, alignItems: 'start' }}>
-        <form onSubmit={saveProfile} className="card" style={{ padding: 28, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <SectionTitle>Profile</SectionTitle>
-          <Field label="Full name" id="profile-name">
-            <input id="profile-name" value={profile.name} onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))} placeholder="Full name" style={{ width: '100%' }} />
-          </Field>
-          <Field label="Email" id="profile-email">
-            <input id="profile-email" type="email" value={profile.email} onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))} placeholder="Email" style={{ width: '100%' }} />
-          </Field>
-          <Field label="Phone" id="profile-phone">
-            <input id="profile-phone" type="tel" value={profile.phone} onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))} placeholder="Phone number" style={{ width: '100%' }} />
-          </Field>
-          {profileStatus === 'error' && <div className="field-message field-message--error">Could not save profile.</div>}
-          <button className="btn btn-primary" aria-busy={profileStatus === 'saving'} disabled={profileStatus === 'saving'}>Save Profile</button>
-        </form>
-
-        <div className="card" style={{ padding: 28 }}>
-          <SectionTitle>Saved Addresses</SectionTitle>
-          <form onSubmit={saveAddress} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
-            <Field label="Address label" id="address-label">
-              <input id="address-label" value={addressForm.label} onChange={(e) => setAddressForm((a) => ({ ...a, label: e.target.value }))} placeholder="Home, office, campus..." style={{ width: '100%' }} />
-            </Field>
-            <Field label="Address" id="address-text">
-              <textarea id="address-text" required value={addressForm.address} onChange={(e) => setAddressForm((a) => ({ ...a, address: e.target.value }))} placeholder="Delivery address in Abeokuta..." style={{ width: '100%', minHeight: 72, resize: 'vertical' }} />
-            </Field>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, color: 'var(--color-text-muted)', fontWeight: 700 }}>
-              <input type="checkbox" checked={addressForm.isDefault} onChange={(e) => setAddressForm((a) => ({ ...a, isDefault: e.target.checked }))} />
-              Make default address
-            </label>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button className="btn btn-primary btn-sm" aria-busy={addressStatus === 'saving'} disabled={addressStatus === 'saving'}>{addressForm.id ? 'Update Address' : 'Add Address'}</button>
-              {addressForm.id && (
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAddressForm({ id: null, label: '', address: '', isDefault: false })}>Cancel Edit</button>
-              )}
+        <div className="account-grid">
+          <Card className="account-panel">
+            <div className="account-panel__header">
+              <h2>Profile</h2>
+              <p>Your contact details for receipts and delivery updates.</p>
             </div>
-          </form>
+            <form onSubmit={saveProfile} className="account-form">
+              <AuthField label="Full name" id="profile-name">
+                <Input
+                  id="profile-name"
+                  name="name"
+                  autoComplete="name"
+                  value={profile.name}
+                  onChange={(event) => setProfile((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))}
+                />
+              </AuthField>
+              <AuthField
+                label="Account email"
+                id="profile-email"
+                hint="This is the email used to sign in."
+              >
+                <Input
+                  id="profile-email"
+                  type="email"
+                  value={profile.email}
+                  readOnly
+                  aria-readonly="true"
+                />
+              </AuthField>
+              <AuthField label="Phone number" id="profile-phone">
+                <Input
+                  id="profile-phone"
+                  name="tel"
+                  type="tel"
+                  autoComplete="tel"
+                  value={profile.phone}
+                  onChange={(event) => setProfile((current) => ({
+                    ...current,
+                    phone: event.target.value,
+                  }))}
+                />
+              </AuthField>
+              {profileStatus === 'error' && (
+                <Alert variant="destructive"><CircleAlert size={17} aria-hidden="true" /><AlertTitle>Profile not saved</AlertTitle><AlertDescription>{profileError || 'Check your connection and try again.'}</AlertDescription></Alert>
+              )}
+              <Button
+                type="submit"
+                aria-busy={profileStatus === 'saving'}
+                disabled={profileStatus === 'saving'}
+              >
+                Save changes
+              </Button>
+            </form>
+          </Card>
 
-          {addresses === null ? (
-            <div className="skeleton" style={{ height: 96 }} />
-          ) : addresses.length === 0 ? (
-            <div style={{ padding: '24px 0', color: 'var(--color-text-muted)', fontSize: 14 }}>No saved addresses yet.</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {addresses.map((address) => (
-                <div key={address.id} style={{ border: '1px solid rgba(50,26,23,0.1)', borderRadius: 12, padding: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: 14 }}>{address.label || 'Saved address'} {address.is_default && <span style={{ color: 'var(--color-olive)' }}>- Default</span>}</div>
-                      <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 4, lineHeight: 1.5 }}>{address.address_text}</div>
+          <Card className="account-panel">
+            <div className="account-panel__header">
+              <h2>Saved addresses</h2>
+              <p>Add a delivery address or update an existing one.</p>
+            </div>
+            <form onSubmit={saveAddress} className="account-form account-address-form">
+              <AuthField label="Label" id="address-label">
+                <Input
+                  id="address-label"
+                  value={addressForm.label}
+                  placeholder="Home, office, campus"
+                  onChange={(event) => setAddressForm((current) => ({
+                    ...current,
+                    label: event.target.value,
+                  }))}
+                />
+              </AuthField>
+              <AuthField label="Delivery address" id="address-text">
+                <Textarea
+                  id="address-text"
+                  required
+                  value={addressForm.address}
+                  placeholder="Street, area and a nearby landmark"
+                  onChange={(event) => setAddressForm((current) => ({
+                    ...current,
+                    address: event.target.value,
+                  }))}
+                />
+              </AuthField>
+              <label className="account-checkbox">
+                <input
+                  type="checkbox"
+                  checked={addressForm.isDefault}
+                  onChange={(event) => setAddressForm((current) => ({
+                    ...current,
+                    isDefault: event.target.checked,
+                  }))}
+                />
+                <span>Use as default address</span>
+              </label>
+              {addressStatus === 'error' && (
+                <Alert variant="destructive"><CircleAlert size={17} aria-hidden="true" /><AlertTitle>Address not saved</AlertTitle><AlertDescription>{addressError || 'Check the address and try again.'}</AlertDescription></Alert>
+              )}
+              <div className="account-form__actions">
+                <Button
+                  type="submit"
+                  size="sm"
+                  aria-busy={addressStatus === 'saving'}
+                  disabled={addressStatus === 'saving'}
+                >
+                  {addressForm.id ? 'Update address' : 'Add address'}
+                </Button>
+                {addressForm.id && (
+                  <Button type="button" variant="ghost" size="sm" onClick={resetAddressForm}>
+                    Cancel
+                  </Button>
+                )}
+              </div>
+            </form>
+
+            <div className="address-list" aria-live="polite">
+              {addresses === null ? (
+                <div className="skeleton address-list__loading" />
+              ) : addresses.length === 0 ? (
+                <p className="address-list__empty">No saved addresses yet.</p>
+              ) : addresses.map((address) => (
+                <article key={address.id} className="address-row">
+                  <div className="address-row__body">
+                    <div className="address-row__title">
+                      <h3>{address.label || 'Saved address'}</h3>
+                      {address.is_default && <span>Default</span>}
                     </div>
+                    <p>{address.address_text}</p>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAddressForm({ id: address.id, label: address.label || '', address: address.address_text, isDefault: address.is_default })}>Edit</button>
-                    {!address.is_default && <button type="button" className="btn btn-secondary btn-sm" onClick={() => makeDefault(address)}>Make Default</button>}
-                    <button type="button" onClick={() => removeAddress(address)} style={{ background: 'none', border: 'none', color: 'var(--color-error)', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>Remove</button>
+                  <div className="address-row__actions">
+                    <button type="button" onClick={() => editAddress(address)}>Edit</button>
+                    {!address.is_default && (
+                      <button type="button" onClick={() => makeDefault(address)}>Make default</button>
+                    )}
+                    <ConfirmAlertDialog
+                      trigger={<button type="button" className="is-destructive">Remove</button>}
+                      title="Remove this address?"
+                      description={`“${address.label || 'Saved address'}” will be removed from your account.`}
+                      confirmLabel="Remove address"
+                      onConfirm={() => removeAddress(address)}
+                    />
                   </div>
-                </div>
+                </article>
               ))}
             </div>
-          )}
+          </Card>
         </div>
       </div>
+    </section>
+  );
+}
+
+function AuthField({ label, id, hint, children }) {
+  const hintId = hint ? `${id}-hint` : undefined;
+  const field = hint && isValidElement(children)
+    ? cloneElement(children, { 'aria-describedby': hintId })
+    : children;
+
+  return (
+    <div className="auth-field">
+      <Label htmlFor={id}>{label}</Label>
+      {field}
+      {hint && <p id={hintId} className="auth-field__hint">{hint}</p>}
     </div>
   );
 }
-
-function Field({ label, id, children }) {
-  return (
-    <div>
-      <label htmlFor={id} style={{ display: 'block', fontSize: 12, fontWeight: 800, color: 'var(--color-olive)', textTransform: 'uppercase', marginBottom: 6 }}>{label}</label>
-      {children}
-    </div>
-  );
-}
-
-function SectionTitle({ children }) {
-  return (
-    <div style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-olive)', marginBottom: 4 }}>{children}</div>
-  );
-}
-
-const linkBtn = { background: 'none', border: 'none', color: 'var(--color-cocoa)', fontWeight: 700, cursor: 'pointer', font: 'inherit' };

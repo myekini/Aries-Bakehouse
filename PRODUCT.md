@@ -8,7 +8,7 @@ web
 
 ## Users
 
-Local, repeat customers in Abeokuta, Nigeria, ordering baked goods (banana bread, small chops, cake treats, brownies, cookies, pastries) for home enjoyment or a small gathering — usually from a phone browser, planning at least 24 hours ahead for pickup or local delivery. Guest checkout is the default path; accounts are an accelerator for reordering, never a gate.
+Local, repeat customers in Abeokuta, Nigeria, ordering baked goods (banana bread, small chops, cake treats, brownies, and pastries) for home enjoyment or a small gathering — usually from a phone browser, planning at least 24 hours ahead for pickup or local delivery. Guest checkout is the default path; accounts are an accelerator for reordering, never a gate.
 
 ## Product Purpose
 
@@ -41,7 +41,7 @@ Nothing on the menu is a static shelf item with a photo and a size dropdown. Ban
 
 ## Evidence on Hand
 
-- Real product photography for the full catalogue (banana bread variants, brownies, small chops, cake treats, cookies, pastries) — `public/uploads/`.
+- Real product photography for the full catalogue (banana bread variants, brownies, small chops, cake treats, and pastries) — `public/uploads/`.
 - No customer reviews, testimonials, or ratings currently exist as seed content — the review system is live and real reviews will accumulate post-launch. Do not fabricate reviews, ratings, or customer counts anywhere on the site.
 - No confirmed pricing yet for Cake Parfait / Ice Cream Twist — surfaced honestly as "TBC," never invented.
 

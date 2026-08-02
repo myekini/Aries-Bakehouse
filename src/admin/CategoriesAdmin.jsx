@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
+import { toast } from '../components/ui/toast.jsx';
+import { ConfirmAlertDialog } from '../components/ui/alert-dialog.jsx';
 
 export default function CategoriesAdmin() {
   const [categories, setCategories] = useState(null);
@@ -25,9 +27,8 @@ export default function CategoriesAdmin() {
   }
 
   async function deleteCategory(cat) {
-    if (!window.confirm(`Delete category "${cat.name}"? This only works if no products reference it.`)) return;
     const { error } = await supabase.from('product_category').delete().eq('id', cat.id);
-    if (error) alert(error.message);
+    if (error) toast.error('Category was not deleted', { description: error.message });
     load();
   }
 
@@ -43,7 +44,13 @@ export default function CategoriesAdmin() {
             <input defaultValue={c.description || ''} placeholder="Description" onBlur={(e) => e.target.value !== (c.description || '') && updateField(c, 'description', e.target.value)} />
             <input defaultValue={c.image_url || ''} placeholder="Image URL" onBlur={(e) => e.target.value !== (c.image_url || '') && updateField(c, 'image_url', e.target.value)} />
             <input type="number" defaultValue={c.sort_order} aria-label={`${c.name} sort order`} onBlur={(e) => updateField(c, 'sort_order', Number(e.target.value) || 0)} />
-            <button type="button" onClick={() => deleteCategory(c)} className="btn btn-secondary btn-sm">Delete</button>
+            <ConfirmAlertDialog
+              trigger={<button type="button" className="btn btn-secondary btn-sm">Delete</button>}
+              title={`Delete ${c.name}?`}
+              description="This category can only be deleted when no products reference it. This action cannot be undone."
+              confirmLabel="Delete category"
+              onConfirm={() => deleteCategory(c)}
+            />
           </div>
         ))}
       </div>

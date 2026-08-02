@@ -2,7 +2,7 @@
 
 import NextLink from 'next/link';
 import { notFound, useParams as useNextParams, usePathname, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 function stateKey(pathname) {
   return `aries11_next_nav_state:${pathname}`;
@@ -40,18 +40,20 @@ export function Link({ to, href, state, onClick, children, ...props }) {
   );
 }
 
-export function NavLink({ to, href, end = false, style, children, ...props }) {
+export function NavLink({ to, href, end = false, style, className, children, ...props }) {
   const pathname = usePathname();
   const target = to || href || '#';
   const targetPath = typeof target === 'string' ? target : target.pathname;
   const isActive = end ? pathname === targetPath : pathname === targetPath || pathname.startsWith(`${targetPath}/`);
   const resolvedStyle = typeof style === 'function' ? style({ isActive }) : style;
-  return <Link to={targetPath} style={resolvedStyle} {...props}>{children}</Link>;
+  const resolvedClassName = typeof className === 'function' ? className({ isActive }) : className;
+  const resolvedChildren = typeof children === 'function' ? children({ isActive }) : children;
+  return <Link to={targetPath} style={resolvedStyle} className={resolvedClassName} {...props}>{resolvedChildren}</Link>;
 }
 
 export function useNavigate() {
   const router = useRouter();
-  return (to, options = {}) => {
+  return useCallback((to, options = {}) => {
     if (options.replace) {
       saveState(to, options.state);
       router.replace(to);
@@ -59,7 +61,7 @@ export function useNavigate() {
       saveState(to, options.state);
       router.push(to);
     }
-  };
+  }, [router]);
 }
 
 export function useLocation() {
@@ -77,7 +79,7 @@ export function useSearchParams() {
   const pathname = usePathname();
   const [search, setSearch] = useState(() => (typeof window === 'undefined' ? '' : window.location.search));
   const writable = useMemo(() => new URLSearchParams(search.startsWith('?') ? search.slice(1) : search), [search]);
-  const setParams = (nextParams, options = {}) => {
+  const setParams = useCallback((nextParams, options = {}) => {
     const next = new URLSearchParams(nextParams);
     const url = next.toString() ? `${pathname}?${next.toString()}` : pathname;
     if (options.replace) {
@@ -86,7 +88,7 @@ export function useSearchParams() {
     } else {
       router.push(url);
     }
-  };
+  }, [pathname, router]);
   return [writable, setParams];
 }
 

@@ -3,10 +3,20 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { fmtNaira } from '../lib/format.js';
 import { useCart } from '../context/CartContext.jsx';
 import { useProduct, useProductReviews, useRelatedProducts } from '../hooks/useCatalog.js';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import PillSelector from '../components/PillSelector.jsx';
+import SwatchPicker from '../components/SwatchPicker.jsx';
 import ProductCard from '../components/ProductCard.jsx';
 import { productImageFit, productImagePadding } from '../lib/media.js';
 import { trackEvent } from '../lib/analytics.js';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '../components/ui/breadcrumb.jsx';
 
 export default function ProductDetail() {
   const { slug } = useParams();
@@ -62,32 +72,47 @@ function ProductDetailView({ slug, product, rules }) {
 
 function ProductInfoBlock({ product }) {
   return (
-    <div className="card" style={{ padding: 24, marginTop: 32, display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <InfoRow label="Ingredients" value={product?.ingredientsNote || 'TBC'} />
-      <InfoRow label="Allergens" value={product?.allergenNote || 'TBC'} />
-      <InfoRow label="Storage" value={product?.storageNote || 'TBC'} />
+    <div className="card product-info-panel">
+      <InfoRow label="Ingredients" value={confirmedInfo(product?.ingredientsNote, 'Contact support for the current ingredient list.')} />
+      <InfoRow label="Allergens" value={confirmedInfo(product?.allergenNote, 'Contact support before ordering if you have an allergy.')} />
+      <InfoRow label="Storage" value={confirmedInfo(product?.storageNote, 'Storage guidance is provided with your order.')} />
     </div>
   );
+}
+
+function confirmedInfo(value, fallback) {
+  return !value || value.trim().toUpperCase() === 'TBC' ? fallback : value;
 }
 
 function InfoRow({ label, value }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-      <div style={{ fontWeight: 700, color: 'var(--color-olive)' }}>{label}</div>
-      <div style={{ color: 'var(--color-text-muted)' }}>{value}</div>
+    <div className="product-info-row">
+      <div>{label}</div>
+      <div>{value}</div>
     </div>
   );
 }
 
-function Breadcrumb({ product }) {
+function productCategoryLabel(category) {
+  if (category === 'brownies-cookies') return 'Brownies';
+  return category
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function ProductBreadcrumb({ product }) {
   return (
-    <div style={{ fontSize: 13, color: 'var(--color-text-faint)', marginBottom: 24 }}>
-      <Link to="/menu" style={{ color: 'inherit', textDecoration: 'none' }}>Menu</Link>
-      {' → '}
-      <Link to={`/menu/${product.category}`} style={{ color: 'inherit', textDecoration: 'none' }}>{product.category.replace(/-/g, ' ')}</Link>
-      {' → '}
-      <span style={{ color: 'var(--color-choc)', fontWeight: 700 }}>{product.name}</span>
-    </div>
+    <Breadcrumb>
+      <BreadcrumbList>
+        <BreadcrumbItem><BreadcrumbLink render={<Link to="/" />}>Home</BreadcrumbLink></BreadcrumbItem>
+        <BreadcrumbSeparator />
+        <BreadcrumbItem><BreadcrumbLink render={<Link to="/menu" />}>Menu</BreadcrumbLink></BreadcrumbItem>
+        <BreadcrumbSeparator />
+        <BreadcrumbItem><BreadcrumbLink render={<Link to={`/menu/${product.category}`} />}>{productCategoryLabel(product.category)}</BreadcrumbLink></BreadcrumbItem>
+        <BreadcrumbSeparator />
+        <BreadcrumbItem><BreadcrumbPage>{product.name}</BreadcrumbPage></BreadcrumbItem>
+      </BreadcrumbList>
+    </Breadcrumb>
   );
 }
 
@@ -118,8 +143,19 @@ function ProductGallery({ product, activeImage, alt }) {
 
   return (
     <div>
-      <div style={{ width: '100%', aspectRatio: '4/5', borderRadius: 20, overflow: 'hidden', boxShadow: '0 8px 20px rgba(50,26,23,0.1)', background: 'linear-gradient(180deg, var(--color-white), var(--color-cream))', padding: productImagePadding(product) }}>
-        <img src={selected} alt={alt} style={{ width: '100%', height: '100%', objectFit: productImageFit(product), borderRadius: productImagePadding(product) ? 14 : 0 }} />
+      <div style={{ position: 'relative', width: '100%', aspectRatio: '4/5', borderRadius: 8, overflow: 'hidden', background: 'var(--color-white)', padding: productImagePadding(product) }}>
+        <AnimatePresence initial={false}>
+          <motion.img
+            key={selected}
+            src={selected}
+            alt={alt}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: productImageFit(product), borderRadius: productImagePadding(product) ? 14 : 0, padding: 'inherit' }}
+          />
+        </AnimatePresence>
       </div>
       {images.length > 1 && (
         <div aria-label="Product image gallery" style={{ display: 'flex', gap: 10, marginTop: 12, overflowX: 'auto', paddingBottom: 2 }}>
@@ -130,7 +166,7 @@ function ProductGallery({ product, activeImage, alt }) {
               aria-label={`Show ${img.alt}`}
               style={{
                 flex: '0 0 64px', width: 64, height: 64, borderRadius: 12, overflow: 'hidden',
-                border: selected === img.url ? '2px solid var(--color-choc)' : '1px solid rgba(50,26,23,0.14)',
+                border: selected === img.url ? '2px solid var(--color-choc)' : '1px solid var(--color-border)',
                 padding: 0, background: 'var(--color-white)', cursor: 'pointer',
               }}
             >
@@ -139,6 +175,54 @@ function ProductGallery({ product, activeImage, alt }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function ConfiguredPreview({ product, image, label }) {
+  const reduceMotion = useReducedMotion();
+  const [displayed, setDisplayed] = useState({ image, label });
+
+  useEffect(() => {
+    if (!image || image === displayed.image) {
+      if (label !== displayed.label) setDisplayed((current) => ({ ...current, label }));
+      return undefined;
+    }
+
+    let cancelled = false;
+    const preview = new window.Image();
+    const showPreview = () => {
+      if (!cancelled) setDisplayed({ image, label });
+    };
+    preview.onload = showPreview;
+    preview.src = image;
+    if (preview.complete) showPreview();
+
+    return () => {
+      cancelled = true;
+      preview.onload = null;
+    };
+  }, [displayed.image, displayed.label, image, label]);
+
+  return (
+    <div className="product-configurator__preview">
+      <AnimatePresence initial={false} mode="wait">
+        <motion.img
+          key={displayed.image}
+          src={displayed.image}
+          alt={displayed.label}
+          fetchPriority="high"
+          initial={{ opacity: reduceMotion ? 1 : 0, scale: reduceMotion ? 1 : 0.985 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: reduceMotion ? 1 : 0, scale: 1.01 }}
+          transition={{ duration: reduceMotion ? 0 : 0.28, ease: 'easeOut' }}
+          style={{ objectFit: productImageFit(product), padding: productImagePadding(product) }}
+        />
+      </AnimatePresence>
+      <div className="product-configurator__preview-label">
+        <span>Your selection</span>
+        <strong>{displayed.label}</strong>
+      </div>
     </div>
   );
 }
@@ -232,13 +316,13 @@ function SimpleProduct({ product }) {
 
   return (
     <div className="product-page-with-sticky">
-      <div className="container" style={{ padding: '24px 0 0' }}><Breadcrumb product={product} /></div>
+      <div className="container" style={{ padding: '24px 0 0' }}><ProductBreadcrumb product={product} /></div>
       <div className="container" style={{ display: 'flex', flexWrap: 'wrap', gap: 64, paddingBottom: 64 }}>
         <div style={{ flex: '1 1 400px' }}>
           <ProductGallery product={product} activeImage={product.image} alt={product.name} />
         </div>
         <div style={{ flex: '1 1 360px' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-olive)' }}>{product.category.replace(/-/g, ' ')}</div>
+          <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-olive)' }}>{productCategoryLabel(product.category)}</div>
           <h1 style={{ fontSize: 36, fontWeight: 800, margin: '10px 0 0' }}>{product.name}</h1>
           <div style={{ fontWeight: 800, fontSize: 22, marginTop: 12 }}>{fmtNaira(product.startingPrice)}</div>
           <p style={{ fontSize: 15, color: 'var(--color-text-muted)', marginTop: 14, lineHeight: 1.6, maxWidth: 460 }}>{product.desc}</p>
@@ -315,6 +399,7 @@ function ConfiguredProduct({ product, rules, makeConfig }) {
   const priceKnown = unitPrice !== null;
 
   const variantImage = config.image(state) || product.image;
+  const previewLabel = config.previewLabel ? config.previewLabel(state) : config.itemName(product, state);
 
   const buildItem = () => {
     const { qty: _qty, ...variantSelections } = state; // qty isn't a variant selection
@@ -337,35 +422,31 @@ function ConfiguredProduct({ product, rules, makeConfig }) {
 
   return (
     <div className="product-page-with-sticky">
-      <div className="container" style={{ padding: '24px 0 0' }}><Breadcrumb product={product} /></div>
-      <div className="container" style={{ display: 'flex', flexWrap: 'wrap', gap: 64, paddingBottom: 64 }}>
-        <div style={{ flex: '1 1 400px' }}>
-          <ProductGallery product={product} activeImage={variantImage} alt={config.itemName(product, state)} />
-          <div style={{ fontSize: 13, color: 'var(--color-text-faint)', marginTop: 12, textAlign: 'center' }}>Preview updates with your selection.</div>
+      <div className="container product-configurator__breadcrumb"><ProductBreadcrumb product={product} /></div>
+      <div className="container product-configurator">
+        <div className="product-configurator__media">
+          <ConfiguredPreview product={product} image={variantImage} label={previewLabel} />
         </div>
 
-        <div style={{ flex: '1 1 360px', position: 'sticky', top: 96, alignSelf: 'flex-start' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-olive)' }}>{product.category.replace(/-/g, ' ')}</div>
-          <h1 style={{ fontSize: 36, fontWeight: 800, margin: '10px 0 0' }}>{product.name}</h1>
-          <div style={{ fontWeight: 800, fontSize: 22, marginTop: 12 }}>{priceKnown ? fmtNaira(unitPrice) : 'Price TBC'}</div>
-          <p style={{ fontSize: 15, color: 'var(--color-text-muted)', marginTop: 14, lineHeight: 1.6, maxWidth: 460 }}>{product.desc}</p>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-olive)', marginTop: 10 }}>{product.availability}</div>
+        <div className="product-configurator__controls">
+          <div className="product-configurator__category">{productCategoryLabel(product.category)}</div>
+          <h1>{product.name}</h1>
+          <div className="product-configurator__price">{priceKnown ? fmtNaira(unitPrice) : 'Price TBC'}</div>
+          <p className="product-configurator__description">{product.desc}</p>
+          <div className="product-configurator__availability">{product.availability}</div>
 
           <config.Fields state={state} setState={setState} />
 
-          <div style={{ marginTop: 28 }}>
+          <div className="product-configurator__quantity">
             <div style={sectionLabel}>Quantity</div>
             <QtyStepper qty={qty} setQty={(q) => setState((s) => ({ ...s, qty: q }))} min={config.minQty ? config.minQty(state) : 1} />
           </div>
 
           <DeliveryEstimate fulfilment={fulfilment} setFulfilment={setFulfilment} />
 
-          <div style={{ marginTop: 24, background: 'var(--color-white)', borderRadius: 16, padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: 14, color: 'var(--color-text-muted)', fontWeight: 600 }}>Estimated Total</div>
-            <div style={{ fontWeight: 800, fontSize: 24 }}>{priceKnown ? fmtNaira(unitPrice * qty) : 'Price TBC'}</div>
-          </div>
+          <AnimatedTotal priceKnown={priceKnown} total={priceKnown ? unitPrice * qty : null} />
 
-          <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+          <div className="product-configurator__actions">
             <button className="btn btn-primary btn-lg" style={{ flex: 1 }} onClick={() => addToCart(buildItem())}>Add to Cart</button>
             <button className="btn btn-secondary btn-lg" style={{ flex: 1 }} onClick={buyNow}>Buy Now</button>
           </div>
@@ -387,6 +468,31 @@ function ConfiguredProduct({ product, rules, makeConfig }) {
   );
 }
 
+// The running total ticks over as selections change — the price responding
+// instantly to each choice is what makes configuring feel like a
+// conversation at the counter rather than a form.
+function AnimatedTotal({ priceKnown, total }) {
+  const reduceMotion = useReducedMotion();
+  const text = priceKnown ? fmtNaira(total) : 'Price TBC';
+  return (
+    <div className="product-configurator__total">
+      <div>Estimated total</div>
+      <AnimatePresence initial={false} mode="popLayout">
+        <motion.div
+          key={text}
+          initial={{ y: reduceMotion ? 0 : 14, opacity: reduceMotion ? 1 : 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: reduceMotion ? 0 : -14, opacity: reduceMotion ? 1 : 0 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          style={{ fontWeight: 800, fontSize: 24 }}
+        >
+          {text}
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function makeBananaBreadConfig(rules) {
   return {
     initialState: () => ({ size: 'medium', topping: 'plain', mixed: false, qty: 1 }),
@@ -396,6 +502,7 @@ function makeBananaBreadConfig(rules) {
       return state.mixed && size.mixedPrice ? size.mixedPrice : size.price;
     },
     image: (state) => (state.mixed ? rules.mixedImage : rules.toppings.find((t) => t.id === state.topping)?.image),
+    previewLabel: (state) => (state.mixed ? 'Mixed toppings' : rules.toppings.find((t) => t.id === state.topping)?.label),
     variantKey: (state) => `${state.size}-${state.mixed ? 'mixed' : state.topping}`,
     itemName: (product, state) => {
       const size = rules.sizes.find((s) => s.id === state.size);
@@ -405,11 +512,14 @@ function makeBananaBreadConfig(rules) {
     note: (state) => (state.size === 'mini' ? `Minimum quantity: ${rules.sizes.find((s) => s.id === 'mini').minQty}` : null),
     Fields({ state, setState }) {
       const mixedAllowed = rules.mixedAllowedSizes.includes(state.size);
+      const activeTopping = state.mixed ? null : rules.toppings.find((t) => t.id === state.topping);
       return (
         <>
           <div style={{ marginTop: 32 }}>
             <div style={sectionLabel}>Size</div>
-            <PillSelector ariaLabel="Size" options={rules.sizes.map((s) => ({ id: s.id, label: s.label }))} value={state.size}
+            <PillSelector ariaLabel="Size"
+              options={rules.sizes.map((s) => ({ id: s.id, label: `${s.label} · ${fmtNaira(s.price)}` }))}
+              value={state.size}
               onChange={(size) => setState((s) => ({ ...s, size, mixed: rules.mixedAllowedSizes.includes(size) ? s.mixed : false, qty: Math.max(s.qty, rules.sizes.find((x) => x.id === size).minQty || 1) }))} />
           </div>
           <div style={{ marginTop: 28 }}>
@@ -417,6 +527,7 @@ function makeBananaBreadConfig(rules) {
               <div style={sectionLabel}>Topping</div>
               {mixedAllowed && (
                 <button
+                  type="button"
                   onClick={() => setState((s) => ({ ...s, mixed: !s.mixed }))}
                   style={{ background: 'none', border: 'none', fontSize: 13, fontWeight: 700, color: state.mixed ? 'var(--color-cocoa)' : 'var(--color-olive)', cursor: 'pointer' }}
                 >
@@ -424,8 +535,13 @@ function makeBananaBreadConfig(rules) {
                 </button>
               )}
             </div>
-            <PillSelector ariaLabel="Topping" disabled={state.mixed} options={rules.toppings.map((t) => ({ id: t.id, label: t.label }))} value={state.topping}
+            <SwatchPicker ariaLabel="Topping" disabled={state.mixed}
+              options={rules.toppings.map((t) => ({ id: t.id, label: t.label, image: t.icon || t.image, color: t.color }))}
+              value={state.topping}
               onChange={(topping) => setState((s) => ({ ...s, topping }))} />
+            <div aria-live="polite" style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 10, minHeight: 20 }}>
+              {state.mixed ? 'A mix of the kitchen’s toppings across the loaf.' : activeTopping ? `${activeTopping.label} — shown in the preview.` : null}
+            </div>
           </div>
         </>
       );
@@ -437,7 +553,16 @@ function makeBrowniesConfig(rules) {
   return {
     initialState: () => ({ size: '4', flavour: 'biscoff', mixed: false, qty: 1 }),
     unitPrice: (state) => rules.sizes.find((s) => s.id === state.size)?.price,
-    image: (state) => rules.sizes.find((s) => s.id === state.size)?.image,
+    image: (state) => {
+      if (state.mixed) return rules.sizes.find((s) => s.id === state.size)?.image;
+      const flavourId = state.flavour.replaceAll('-', '');
+      return `/uploads/aries11-brownies-box-${state.size}-${flavourId}.webp`;
+    },
+    previewLabel: (state) => {
+      const size = rules.sizes.find((s) => s.id === state.size)?.label;
+      const flavour = state.mixed ? 'Mixed flavours' : rules.flavours.find((f) => f.id === state.flavour)?.label;
+      return `${size} · ${flavour}`;
+    },
     variantKey: (state) => `${state.size}-${state.mixed ? 'mixed' : state.flavour}`,
     itemName: (product, state) => {
       const size = rules.sizes.find((s) => s.id === state.size);
@@ -456,13 +581,14 @@ function makeBrowniesConfig(rules) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <div style={sectionLabel}>Flavour</div>
               <button
+                type="button"
                 onClick={() => setState((s) => ({ ...s, mixed: !s.mixed }))}
                 style={{ background: 'none', border: 'none', fontSize: 13, fontWeight: 700, color: state.mixed ? 'var(--color-cocoa)' : 'var(--color-olive)', cursor: 'pointer' }}
               >
                 {state.mixed ? 'Mixed selected — clear' : 'Mix flavours (same price)'}
               </button>
             </div>
-            <PillSelector ariaLabel="Flavour" disabled={state.mixed} options={rules.flavours.map((f) => ({ id: f.id, label: f.label }))} value={state.flavour}
+            <SwatchPicker ariaLabel="Flavour" disabled={state.mixed} options={rules.flavours.map((f) => ({ id: f.id, label: f.label, image: f.icon || f.image }))} value={state.flavour}
               onChange={(flavour) => setState((s) => ({ ...s, flavour }))} />
           </div>
         </>
@@ -476,14 +602,15 @@ function makePastriesConfig(rules) {
     initialState: () => ({ option: 'mixed', qty: 1 }),
     unitPrice: (state) => rules.options.find((o) => o.id === state.option)?.price,
     image: (state) => rules.options.find((o) => o.id === state.option)?.image,
+    previewLabel: (state) => rules.options.find((o) => o.id === state.option)?.label,
     variantKey: (state) => state.option,
     itemName: (product, state) => rules.options.find((o) => o.id === state.option)?.label,
     note: () => rules.pieceCountNote,
     Fields({ state, setState }) {
       return (
-        <div style={{ marginTop: 32 }}>
-          <div style={sectionLabel}>Selection</div>
-          <PillSelector ariaLabel="Pastry selection" options={rules.options.map((o) => ({ id: o.id, label: o.label }))} value={state.option}
+          <div style={{ marginTop: 32 }}>
+            <div style={sectionLabel}>Selection</div>
+          <SwatchPicker ariaLabel="Pastry selection" options={rules.options.map((o) => ({ id: o.id, label: o.label, image: o.icon || o.image }))} value={state.option}
             onChange={(option) => setState((s) => ({ ...s, option }))} />
         </div>
       );
@@ -496,14 +623,15 @@ function makeSmallChopsConfig(rules) {
     initialState: () => ({ platter: 'solo-survivor', qty: 1 }),
     unitPrice: (state) => rules.platters.find((p) => p.id === state.platter)?.price,
     image: (state) => rules.platters.find((p) => p.id === state.platter)?.image,
+    previewLabel: (state) => rules.platters.find((p) => p.id === state.platter)?.label,
     variantKey: (state) => state.platter,
     itemName: (product, state) => rules.platters.find((p) => p.id === state.platter)?.label,
     note: () => 'Substitutions are not yet available — each platter is a fixed selection.',
     Fields({ state, setState }) {
       return (
-        <div style={{ marginTop: 32 }}>
-          <div style={sectionLabel}>Platter</div>
-          <PillSelector ariaLabel="Platter" options={rules.platters.map((p) => ({ id: p.id, label: p.label }))} value={state.platter}
+          <div style={{ marginTop: 32 }}>
+            <div style={sectionLabel}>Platter</div>
+          <SwatchPicker ariaLabel="Platter" options={rules.platters.map((p) => ({ id: p.id, label: p.label, image: p.icon || p.image }))} value={state.platter}
             onChange={(platter) => setState((s) => ({ ...s, platter }))} />
           <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 10 }}>
             {rules.platters.find((p) => p.id === state.platter)?.desc}
@@ -524,6 +652,11 @@ function makeCakeConfig(rules) {
     initialState: () => ({ flavour: 'chocolate', size: 'small', qty: 1 }),
     unitPrice: () => null, // pricing TBC per spec §7
     image: (state) => rules.flavours.find((f) => f.id === state.flavour)?.image,
+    previewLabel: (state) => {
+      const flavour = rules.flavours.find((f) => f.id === state.flavour)?.label;
+      const size = rules.sizes.find((s) => s.id === state.size)?.label;
+      return `${flavour} · ${size}`;
+    },
     variantKey: (state) => `${state.flavour}-${state.size}`,
     itemName: (product, state) => {
       const flavour = rules.flavours.find((f) => f.id === state.flavour)?.label;
@@ -536,7 +669,7 @@ function makeCakeConfig(rules) {
         <>
           <div style={{ marginTop: 32 }}>
             <div style={sectionLabel}>Flavour</div>
-            <PillSelector ariaLabel="Flavour" options={rules.flavours.map((f) => ({ id: f.id, label: f.label }))} value={state.flavour}
+            <SwatchPicker ariaLabel="Flavour" options={rules.flavours.map((f) => ({ id: f.id, label: f.label, image: f.icon || f.image }))} value={state.flavour}
               onChange={(flavour) => setState((s) => ({ ...s, flavour }))} />
           </div>
           <div style={{ marginTop: 28 }}>

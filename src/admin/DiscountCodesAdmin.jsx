@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
+import { toast } from '../components/ui/toast.jsx';
+import { ConfirmAlertDialog } from '../components/ui/alert-dialog.jsx';
+import { DatePicker } from '../components/ui/date-picker.jsx';
 
 export default function DiscountCodesAdmin() {
   const [codes, setCodes] = useState(null);
@@ -35,9 +38,8 @@ export default function DiscountCodesAdmin() {
   }
 
   async function deleteCode(code) {
-    if (!window.confirm(`Delete discount code ${code.code}?`)) return;
     const { error } = await supabase.from('discount_code').delete().eq('id', code.id);
-    if (error) alert(error.message);
+    if (error) toast.error('Discount code was not deleted', { description: error.message });
     load();
   }
 
@@ -57,10 +59,21 @@ export default function DiscountCodesAdmin() {
             </select>
             <input type="number" defaultValue={c.value} onBlur={(e) => updateCode(c, { value: Number(e.target.value) || 0 })} aria-label="Discount value" />
             <input type="number" defaultValue={c.usage_limit || ''} placeholder="No limit" onBlur={(e) => updateCode(c, { usage_limit: e.target.value ? Number(e.target.value) : null })} aria-label="Usage limit" />
-            <input type="date" defaultValue={c.expires_at ? c.expires_at.slice(0, 10) : ''} onBlur={(e) => updateCode(c, { expires_at: e.target.value || null })} aria-label="Expiry date" />
+            <DatePicker
+              value={c.expires_at ? c.expires_at.slice(0, 10) : ''}
+              onChange={(value) => updateCode(c, { expires_at: value || null })}
+              aria-label={`${c.code} expiry date`}
+              clearable
+            />
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => toggleActive(c)} className="btn btn-secondary btn-sm">{c.active ? 'Active' : 'Inactive'}</button>
-              <button onClick={() => deleteCode(c)} className="btn btn-secondary btn-sm">Delete</button>
+              <ConfirmAlertDialog
+                trigger={<button type="button" className="btn btn-secondary btn-sm">Delete</button>}
+                title={`Delete ${c.code}?`}
+                description="The code will stop working immediately and cannot be restored."
+                confirmLabel="Delete code"
+                onConfirm={() => deleteCode(c)}
+              />
             </div>
             <div style={{ gridColumn: '1 / -1', fontSize: 12, color: 'var(--color-text-muted)' }}>
               {c.type === 'fixed' ? `₦${c.value} off` : `${c.value}% off`} · {c.usage_limit ? `${c.times_used}/${c.usage_limit} used` : `${c.times_used} used`}
@@ -79,7 +92,14 @@ export default function DiscountCodesAdmin() {
         </select>
         <input type="number" value={form.value} onChange={(e) => setForm((f) => ({ ...f, value: e.target.value }))} placeholder="Value" style={{ width: 100 }} />
         <input type="number" value={form.usage_limit} onChange={(e) => setForm((f) => ({ ...f, usage_limit: e.target.value }))} placeholder="Usage limit (optional)" style={{ width: 160 }} />
-        <input type="date" value={form.expires_at} onChange={(e) => setForm((f) => ({ ...f, expires_at: e.target.value }))} />
+        <DatePicker
+          value={form.expires_at}
+          onChange={(value) => setForm((f) => ({ ...f, expires_at: value }))}
+          aria-label="New discount expiry date"
+          placeholder="Expiry date"
+          clearable
+          style={{ width: 180 }}
+        />
         <button type="submit" className="btn btn-primary btn-sm">Add</button>
       </form>
     </div>

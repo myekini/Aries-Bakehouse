@@ -8,10 +8,10 @@
 -- ============================================================
 
 insert into product_category (slug, name, description, image_url, sort_order) values
-  ('banana-bread', 'Banana Bread', 'Ripe banana loaves, seven toppings.', '/uploads/aries11-bananabread-collection-fullrange.png', 1),
+  ('banana-bread', 'Banana Bread', 'Ripe banana loaves, seven toppings.', '/uploads/aries11-bananabread-topping-plain.png', 1),
   ('small-chops', 'Small Chops', 'Platters for every gathering.', '/uploads/aries11-smallchops-platter-large.png', 2),
-  ('brownies-cookies', 'Brownies & Cookies', 'Fudgy boxes, five rich flavours.', '/uploads/aries11-brownies-box-6.png', 3),
-  ('pastries', 'Pastries', 'Suya pie, fish pie, sausage rolls.', '/uploads/aries11-pastries-mixedtray.png', 4),
+  ('brownies-cookies', 'Brownies', 'Fudgy boxes in five rich flavours.', '/uploads/aries11-brownies-box-6.png', 3),
+  ('pastries', 'Pastries', 'Suya pie, fish pie, sausage rolls.', '/uploads/aries11-pastries-mixedtray-complete.webp', 4),
   ('cake-treats', 'Cake Parfait', 'Layered chocolate & red velvet cups.', '/uploads/aries11-caketreats-parfait-redvelvet.png', 5),
   ('ice-cream-twist', 'Ice Cream Cake Twist', 'Frozen twist cups, two flavours.', '/uploads/aries11-caketreats-icecreamtwist-chocolate.png', 6)
 on conflict (slug) do nothing;
@@ -38,13 +38,6 @@ insert into product (slug, category_id, name, description, base_price, price_fro
 select 'brownie-box', id, 'Brownie Box',
   'Fudge-centre brownies, five rich flavours, boxed to share.',
   7500, true, 'brownies', null, 'made_to_order', 1
-from product_category where slug = 'brownies-cookies'
-on conflict (slug) do nothing;
-
-insert into product (slug, category_id, name, description, base_price, price_from, configurator, badge, availability, min_qty)
-select 'cookie-pack', id, 'Cookie Pack (6)',
-  'Freshly baked cookie pack.',
-  3500, false, null, 'Out of Stock', 'unavailable', 1
 from product_category where slug = 'brownies-cookies'
 on conflict (slug) do nothing;
 
@@ -78,17 +71,15 @@ on conflict (slug) do nothing;
 
 -- Primary product images (mirrors catalog.js `image` field per product)
 insert into product_image (product_id, url, alt_text, is_primary)
-select id, '/uploads/aries11-bananabread-collection-fullrange.png', name, true from product where slug = 'signature-banana-bread'
+select id, '/uploads/aries11-bananabread-topping-plain.png', name, true from product where slug = 'signature-banana-bread'
 union all
 select id, '/uploads/aries11-smallchops-platter-solosurvivor.png', name, true from product where slug = 'small-chops-platter'
 union all
 select id, '/uploads/aries11-brownies-box-4.png', name, true from product where slug = 'brownie-box'
 union all
-select id, '/uploads/aries11-cookies-pack.png', name, true from product where slug = 'cookie-pack'
+select id, '/uploads/aries11-pastries-mixedtray-complete.webp', name, true from product where slug = 'mixed-pastry-tray'
 union all
-select id, '/uploads/aries11-pastries-mixedtray.png', name, true from product where slug = 'mixed-pastry-tray'
-union all
-select id, '/uploads/aries11-pastries-sausagerolls.png', name, true from product where slug = 'sausage-rolls'
+select id, '/uploads/aries11-pastries-sausageroll-single.webp', name, true from product where slug = 'sausage-rolls'
 union all
 select id, '/uploads/aries11-caketreats-parfait-chocolate.png', name, true from product where slug = 'cake-parfait'
 union all
@@ -150,15 +141,15 @@ from product p, (values
 where p.slug = 'brownie-box'
 on conflict (product_id, variant_type, variant_value) do nothing;
 
-insert into product_variant (product_id, variant_type, variant_value, label, sort_order)
-select p.id, 'flavour', v.value, v.label, v.sort_order
+insert into product_variant (product_id, variant_type, variant_value, label, image_url, sort_order)
+select p.id, 'flavour', v.value, v.label, v.image, v.sort_order
 from product p, (values
-  ('biscoff',         'Biscoff', 1),
-  ('oreos',           'Oreos', 2),
-  ('coconut-crunch',  'Coconut Crunch', 3),
-  ('dark-chocolate',  'Dark Chocolate', 4),
-  ('white-chocolate', 'White Chocolate', 5)
-) as v(value, label, sort_order)
+  ('biscoff',         'Biscoff',         '/uploads/aries11-brownie-biscoff-single.webp', 1),
+  ('oreos',           'Oreos',           '/uploads/aries11-brownie-oreos-single.webp', 2),
+  ('coconut-crunch',  'Coconut Crunch',  '/uploads/aries11-brownie-coconutcrunch-single.webp', 3),
+  ('dark-chocolate',  'Dark Chocolate',  '/uploads/aries11-brownie-darkchocolate-single.webp', 4),
+  ('white-chocolate', 'White Chocolate', '/uploads/aries11-brownie-whitechocolate-single.webp', 5)
+) as v(value, label, image, sort_order)
 where p.slug = 'brownie-box'
 on conflict (product_id, variant_type, variant_value) do nothing;
 
@@ -170,7 +161,7 @@ insert into product_variant (product_id, variant_type, variant_value, label, pri
 select p.id, 'platter', v.value, v.label, v.price, v.image, v.sort_order
 from product p, (values
   ('solo-survivor',    'Solo Survivor',        3700,  '/uploads/aries11-smallchops-platter-solosurvivor.png', 1),
-  ('small-platter',    'Small Platter',        7500,  '/uploads/aries11-smallchops-platter-small-alt.png', 2),
+  ('small-platter',    'Small Platter',        7500,  '/uploads/aries11-smallchops-platter-small.webp', 2),
   ('large-platter',    'Large Event Platter',  15000, '/uploads/aries11-smallchops-platter-large.png', 3),
   ('chop-responsibly', 'Chop Responsibly',     32000, '/uploads/aries11-smallchops-platter-large-alt.png', 4)
 ) as v(value, label, price, image, sort_order)
@@ -184,10 +175,10 @@ on conflict (product_id, variant_type, variant_value) do nothing;
 insert into product_variant (product_id, variant_type, variant_value, label, price_override, image_url, sort_order)
 select p.id, 'option', v.value, v.label, v.price, v.image, v.sort_order
 from product p, (values
-  ('suya-pie',      'Suya Pie',         4000, '/uploads/aries11-pastries-suyapie.png', 1),
-  ('fish-pie',      'Fish Pie',         4000, '/uploads/aries11-pastries-fishpie.png', 2),
-  ('sausage-rolls', 'Sausage Rolls',    4000, '/uploads/aries11-pastries-sausagerolls.png', 3),
-  ('mixed',         'Mixed Selection',  4000, '/uploads/aries11-pastries-mixedtray.png', 4)
+  ('suya-pie',      'Suya Pie',         4000, '/uploads/aries11-pastries-suyapie-single.webp', 1),
+  ('fish-pie',      'Fish Pie',         4000, '/uploads/aries11-pastries-fishpie-single.webp', 2),
+  ('sausage-rolls', 'Sausage Rolls',    4000, '/uploads/aries11-pastries-sausageroll-single.webp', 3),
+  ('mixed',         'Mixed Selection',  4000, '/uploads/aries11-pastries-mixedtray-complete.webp', 4)
 ) as v(value, label, price, image, sort_order)
 where p.slug = 'mixed-pastry-tray'
 on conflict (product_id, variant_type, variant_value) do nothing;

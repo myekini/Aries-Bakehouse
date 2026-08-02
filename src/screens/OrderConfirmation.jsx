@@ -1,79 +1,38 @@
 import { useEffect, useState } from 'react';
+import { ArrowRight, CheckCircle2, Clock3, MessageCircle } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { getOrder } from '../lib/orders.js';
 import { fmtLineTotal, fmtNaira } from '../lib/format.js';
+import EmptyState from '../components/EmptyState.jsx';
 
 export default function OrderConfirmation() {
   const { orderId } = useParams();
-  const [order, setOrder] = useState(undefined); // undefined = loading, null = not found
+  const [order, setOrder] = useState(undefined);
 
   useEffect(() => {
     let cancelled = false;
-    getOrder(orderId).then((o) => { if (!cancelled) setOrder(o); }).catch(() => { if (!cancelled) setOrder(null); });
+    getOrder(orderId).then((result) => { if (!cancelled) setOrder(result); }).catch(() => { if (!cancelled) setOrder(null); });
     return () => { cancelled = true; };
   }, [orderId]);
 
-  if (order === undefined) {
-    return <div className="container" style={{ padding: '96px 0', textAlign: 'center' }}>Loading your order…</div>;
-  }
-
-  if (!order) {
-    return (
-      <div className="container" style={{ maxWidth: 640, margin: '0 auto', padding: '80px 20px', textAlign: 'center' }}>
-        <div style={{ fontWeight: 700, fontSize: 20 }}>Order not found</div>
-        <div style={{ fontSize: 14, color: 'var(--color-text-muted)', marginTop: 10 }}>Place an order from the menu to see your confirmation here.</div>
-        <Link to="/menu" className="btn btn-primary" style={{ display: 'inline-flex', marginTop: 24 }}>Browse Menu</Link>
-      </div>
-    );
-  }
+  if (order === undefined) return <div className="container order-state-loading">Loading your order…</div>;
+  if (!order) return <main className="container order-confirmation"><EmptyState title="Order not found" desc="Place an order from the menu to see its confirmation." actionLabel="Browse the menu" actionTo="/menu" /></main>;
 
   const pending = order.status === 'pending';
+  const StatusIcon = pending ? Clock3 : CheckCircle2;
 
   return (
-    <div className="container" style={{ maxWidth: 640, margin: '0 auto', padding: '80px 20px 120px', textAlign: 'center' }}>
-      <div style={{ width: 56, height: 56, borderRadius: 999, background: 'var(--color-olive)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFFDF8" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12l5 5L20 6" /></svg>
-      </div>
-      <h1 style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 36, fontWeight: 400, margin: 0 }}>
-        {pending ? 'Checkout Saved — Pending Confirmation' : 'Order Confirmed'}
-      </h1>
-      <div style={{ fontSize: 15, color: 'var(--color-text-muted)', marginTop: 12 }}>
-        {pending
-          ? 'Your website checkout is saved. The team will help you complete confirmation if payment needs support.'
-          : `Thank you, ${order.name || 'friend'} — your order is in.`}
-      </div>
-      <div style={{ fontSize: 13, color: 'var(--color-text-faint)', marginTop: 8 }}>Order #{order.orderNumber}</div>
+    <main className="container order-confirmation">
+      <header className="order-confirmation__header"><span className={pending ? 'is-pending' : ''}><StatusIcon size={25} aria-hidden="true" /></span><p>{pending ? 'Payment pending' : 'Order received'}</p><h1>{pending ? 'Your checkout has been saved' : 'Thank you for your order'}</h1><div>{pending ? 'Your order is recorded while payment confirmation completes.' : `Thank you, ${order.name || 'friend'}. The kitchen has received your order.`}</div><small>Order #{order.orderNumber}</small></header>
 
-      <div className="card" style={{ padding: 28, marginTop: 32, textAlign: 'left' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
-          {order.items.map((it) => (
-            <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-              <div style={{ color: 'var(--color-text-muted)' }}>{it.name} &times;{it.qty}</div>
-              <div style={{ fontWeight: 700 }}>{fmtLineTotal(it.price, it.qty)}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 16, borderTop: '1px solid rgba(50,26,23,0.12)', paddingTop: 14, marginBottom: order.hasUnpricedItems ? 4 : 16 }}>
-          <div>Total</div><div>{fmtNaira(order.total)}</div>
-        </div>
-        {order.hasUnpricedItems && (
-          <div style={{ fontSize: 11, color: 'var(--color-cocoa)', marginBottom: 14 }}>
-            Excludes item(s) needing price confirmation — we'll confirm final pricing before delivery.
-          </div>
-        )}
-        <div style={{ fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.8 }}>
-          <div><strong>Fulfilment:</strong> {order.fulfilment === 'pickup' ? 'Pickup' : `Delivery — ${order.address || ''}`}</div>
-          <div><strong>Preferred date:</strong> {order.date || '—'}</div>
-          <div><strong>Preferred time:</strong> {order.time || '—'}</div>
-          <div><strong>Estimated ready:</strong> 24 hours from order confirmation</div>
-        </div>
-      </div>
+      <section className="order-confirmation__panel">
+        <div className="order-confirmation__items">{order.items.map((item) => <div key={item.id}><span>{item.name}<small>Quantity {item.qty}</small></span><strong>{fmtLineTotal(item.price, item.qty)}</strong></div>)}</div>
+        <div className="order-confirmation__total"><span>Total</span><strong>{fmtNaira(order.total)}</strong></div>
+        {order.hasUnpricedItems && <p className="order-confirmation__notice">The displayed total excludes items still awaiting price confirmation.</p>}
+        <dl className="order-confirmation__details"><div><dt>Fulfilment</dt><dd>{order.fulfilment === 'pickup' ? 'Pickup' : 'Delivery'}</dd></div>{order.fulfilment === 'delivery' && <div><dt>Address</dt><dd>{order.address || 'To be confirmed'}</dd></div>}<div><dt>Preferred date</dt><dd>{order.date || 'To be confirmed'}</dd></div><div><dt>Preferred time</dt><dd>{order.time || 'To be confirmed'}</dd></div></dl>
+      </section>
 
-      <div style={{ display: 'flex', gap: 12, marginTop: 28, justifyContent: 'center', flexWrap: 'wrap' }}>
-        <Link to={`/account/orders/${order.id}`} className="btn btn-secondary">Track Order</Link>
-        <a href="https://wa.me/2348121145785" target="_blank" rel="noreferrer" className="btn btn-whatsapp">Contact Support on WhatsApp</a>
-        <Link to="/" className="btn btn-secondary">Back to Home</Link>
-      </div>
-    </div>
+      <div className="order-confirmation__actions"><Link to={`/account/orders/${order.id}`} className="btn btn-primary">Track order<ArrowRight size={15} aria-hidden="true" /></Link><a href="https://wa.me/2348121145785" target="_blank" rel="noreferrer" className="btn btn-secondary"><MessageCircle size={15} aria-hidden="true" />Contact support</a><Link to="/menu">Continue shopping</Link></div>
+    </main>
   );
 }

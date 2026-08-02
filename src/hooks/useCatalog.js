@@ -4,10 +4,21 @@ import * as catalog from '../lib/catalog.js';
 // Tiny shared async-effect helper — every hook below follows the same
 // loading/error/data shape, matching the "loading grid/gallery" states the
 // spec already anticipated (§4/§6) for once the catalogue became real data.
-function useAsync(fn, deps) {
-  const [state, setState] = useState({ data: null, loading: true, error: null });
+//
+// `initial`, when passed, is server-fetched data (see e.g. src/app/page.jsx,
+// a Server Component that awaits catalog.js directly under an ISR
+// `revalidate`) — when present, the hook seeds state from it and skips the
+// client-side fetch entirely, so the page renders with data on first paint
+// instead of a loading skeleton, and doesn't double-fetch what the server
+// already fetched. Callers that don't pass `initial` keep fetching
+// client-side exactly as before.
+function useAsync(fn, deps, initial) {
+  const [state, setState] = useState(
+    initial !== undefined ? { data: initial, loading: false, error: null } : { data: null, loading: true, error: null },
+  );
 
   useEffect(() => {
+    if (initial !== undefined) return;
     let cancelled = false;
     setState((s) => ({ ...s, loading: true }));
     fn()
@@ -20,12 +31,12 @@ function useAsync(fn, deps) {
   return state;
 }
 
-export function useCategories() {
-  return useAsync(() => catalog.getCategories(), []);
+export function useCategories(initial) {
+  return useAsync(() => catalog.getCategories(), [], initial);
 }
 
-export function useProducts() {
-  return useAsync(() => catalog.getProducts(), []);
+export function useProducts(initial) {
+  return useAsync(() => catalog.getProducts(), [], initial);
 }
 
 export function useProduct(slug) {
@@ -43,12 +54,12 @@ export function useRelatedProducts(slug, count = 4) {
   return useAsync(() => catalog.relatedProducts(slug, count), [slug, count]);
 }
 
-export function useHomepageBestsellers() {
-  return useAsync(() => catalog.getHomepageBestsellers(), []);
+export function useHomepageBestsellers(initial) {
+  return useAsync(() => catalog.getHomepageBestsellers(), [], initial);
 }
 
-export function useHomepageFeatured() {
-  return useAsync(() => catalog.getHomepageFeatured(), []);
+export function useHomepageFeatured(initial) {
+  return useAsync(() => catalog.getHomepageFeatured(), [], initial);
 }
 
 export function useHomepageReviews(count = 3) {

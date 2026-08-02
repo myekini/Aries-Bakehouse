@@ -27,7 +27,7 @@ create table product (
   category_id uuid not null references product_category(id),
   name text not null,
   description text,
-  base_price integer,                          -- null = fully price-TBC (e.g. Cake Parfait)
+  base_price integer check (base_price is null or base_price >= 0), -- null = fully price-TBC (e.g. Cake Parfait)
   price_from boolean not null default false,    -- render "From ₦X"
   configurator text,                            -- null | 'banana-bread' | 'brownies' | 'small-chops' | 'pastries' | 'cake'
   badge text,                                   -- 'Bestseller' | 'New' | 'Limited' | null
@@ -60,7 +60,7 @@ create table product_variant (
   variant_type text not null,                   -- 'size' | 'flavour' | 'topping' | 'platter' | 'option'
   variant_value text not null,                  -- 'medium', 'oreos', 'solo-survivor', ...
   label text not null,
-  price_override integer,                       -- absolute price when this variant determines price directly
+  price_override integer check (price_override is null or price_override >= 0), -- absolute price when this variant determines price directly
   price_modifier integer not null default 0,    -- additive modifier (e.g. mixed-topping +500)
   min_qty int,
   image_url text,
@@ -88,8 +88,8 @@ create table customer (
   auth_user_id uuid unique references auth.users(id) on delete set null,
   role text not null default 'customer' check (role in ('customer','admin')),
   name text,
-  email text,
-  phone text,
+  email text check (email is null or email ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
+  phone text check (phone is null or phone ~ '^[0-9+()\-\s]{7,20}$'),
   is_guest boolean not null default true,
   created_at timestamptz not null default now()
 );
@@ -123,7 +123,7 @@ create table cart_item (
   product_id uuid not null references product(id),
   variant_selections jsonb not null default '{}',
   quantity int not null check (quantity > 0),
-  unit_price integer,                            -- snapshot at add-time; null if price TBC
+  unit_price integer check (unit_price is null or unit_price >= 0), -- snapshot at add-time; null if price TBC
   created_at timestamptz not null default now()
 );
 
@@ -136,7 +136,7 @@ create table delivery_option (
   name text unique not null,
   type text not null check (type in ('pickup','delivery')),
   zone text,
-  fee integer not null default 0,
+  fee integer not null default 0 check (fee >= 0),
   active boolean not null default true
 );
 
@@ -164,14 +164,14 @@ create table "order" (
   preferred_date date not null,
   preferred_time text not null check (preferred_time in ('morning','afternoon','evening')),
   customer_name text not null,
-  customer_phone text not null,
-  customer_email text,
+  customer_phone text not null check (customer_phone ~ '^[0-9+()\-\s]{7,20}$'),
+  customer_email text check (customer_email is null or customer_email ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
   special_instructions text,
   discount_code_id uuid references discount_code(id),
-  subtotal integer not null,
-  delivery_fee integer not null default 0,
-  discount_amount integer not null default 0,
-  total integer not null,
+  subtotal integer not null check (subtotal >= 0),
+  delivery_fee integer not null default 0 check (delivery_fee >= 0),
+  discount_amount integer not null default 0 check (discount_amount >= 0),
+  total integer not null check (total >= 0),
   has_unpriced_items boolean not null default false,
   fallback_channel text,                          -- null | 'whatsapp'
   created_at timestamptz not null default now(),
@@ -185,8 +185,8 @@ create table order_item (
   product_name_snapshot text not null,
   variant_selections jsonb not null default '{}',
   quantity int not null check (quantity > 0),
-  unit_price integer,
-  line_total integer,
+  unit_price integer check (unit_price is null or unit_price >= 0),
+  line_total integer check (line_total is null or line_total >= 0),
   image_url text
 );
 
@@ -196,7 +196,7 @@ create table payment (
   provider text not null default 'paystack',
   reference text unique not null,
   status text not null default 'pending' check (status in ('pending','success','failed','abandoned')),
-  amount integer not null,
+  amount integer not null check (amount >= 0),
   currency text not null default 'NGN',
   verified_at timestamptz,
   raw_webhook_payload jsonb,
@@ -233,9 +233,11 @@ create table analytics_event (
 
 create table newsletter_signup (
   id uuid primary key default gen_random_uuid(),
-  email text not null unique,
+  email text not null unique check (email ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
   created_at timestamptz not null default now()
 );
+create index analytics_event_session_created_idx on analytics_event (session_id, created_at);
+create index newsletter_signup_created_idx on newsletter_signup (created_at);
 
 -- ============================================================
 -- CONTENT (announcement bar / promo banner / bestseller picks — §14)
@@ -324,9 +326,116 @@ create trigger customer_role_guard
   before update on customer
   for each row execute function prevent_role_escalation();
 
--- Atomically creates an order + its line items. Called via
+-- Both analytics_event and newsletter_signup have `insert with check (true)`
+-- RLS policies (anonymous visitors need to write them), which means the
+-- only thing standing between them and a flood of junk rows is these
+-- triggers. They're deliberately SECURITY DEFINER so their own count query
+-- bypasses RLS (the inserting role — anon/authenticated — has no SELECT
+-- policy on either table) — without that, the count would always read as
+-- zero and the limit would never trigger. This is a coarse, same-database
+-- backstop only; real volumetric-abuse protection (distributed floods)
+-- belongs at the edge (e.g. Vercel Firewall rate limiting), not here.
+create or replace function enforce_analytics_event_rate_limit() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.session_id is not null and (
+    select count(*) from analytics_event
+    where session_id = new.session_id and created_at > now() - interval '1 minute'
+  ) >= 60 then
+    raise exception 'rate limit exceeded — too many analytics events from this session';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists analytics_event_rate_limit on analytics_event;
+create trigger analytics_event_rate_limit
+  before insert on analytics_event
+  for each row execute function enforce_analytics_event_rate_limit();
+
+create or replace function enforce_newsletter_signup_rate_limit() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if (
+    select count(*) from newsletter_signup where created_at > now() - interval '1 minute'
+  ) >= 20 then
+    raise exception 'rate limit exceeded — too many newsletter signups right now, try again shortly';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists newsletter_signup_rate_limit on newsletter_signup;
+create trigger newsletter_signup_rate_limit
+  before insert on newsletter_signup
+  for each row execute function enforce_newsletter_signup_rate_limit();
+
+-- Prices a single line item from server-truth product/product_variant data,
+-- mirroring the unitPrice() rules in src/screens/ProductDetail.jsx per
+-- configurator. Returns null only for the 'cake' configurator, which is
+-- genuinely price-TBC by design (kitchen confirms before payment) — every
+-- other configurator (or no configurator at all) must resolve to a price or
+-- the order is rejected, since a miss there means a product/variant
+-- mismatch or a tampered payload, never a legitimate "unpriced" state.
+create or replace function price_order_item(p_product product, p_selections jsonb) returns integer
+language plpgsql stable set search_path = public as $$
+declare
+  v_price integer;
+begin
+  if p_product.configurator is null then
+    return p_product.base_price;
+  end if;
+
+  if p_product.configurator = 'banana-bread' then
+    if coalesce((p_selections->>'mixed')::boolean, false) then
+      select price_override into v_price from product_variant
+        where product_id = p_product.id and variant_type = 'size_mixed'
+          and variant_value = p_selections->>'size' and is_active;
+    end if;
+    if v_price is null then
+      select price_override into v_price from product_variant
+        where product_id = p_product.id and variant_type = 'size'
+          and variant_value = p_selections->>'size' and is_active;
+    end if;
+  elsif p_product.configurator = 'brownies' then
+    select price_override into v_price from product_variant
+      where product_id = p_product.id and variant_type = 'size'
+        and variant_value = p_selections->>'size' and is_active;
+  elsif p_product.configurator = 'small-chops' then
+    select price_override into v_price from product_variant
+      where product_id = p_product.id and variant_type = 'platter'
+        and variant_value = p_selections->>'platter' and is_active;
+  elsif p_product.configurator = 'pastries' then
+    select price_override into v_price from product_variant
+      where product_id = p_product.id and variant_type = 'option'
+        and variant_value = p_selections->>'option' and is_active;
+  elsif p_product.configurator = 'cake' then
+    return null; -- always price-TBC, matches ProductDetail.jsx unitPrice: () => null
+  else
+    raise exception 'Unknown configurator % on product %', p_product.configurator, p_product.slug;
+  end if;
+
+  if v_price is null then
+    raise exception 'Could not resolve a price for product % with selections %', p_product.slug, p_selections;
+  end if;
+  return v_price;
+end;
+$$;
+
+-- Atomically creates an order + its line items (+ an initial pending
+-- `payment` row when a payment_reference is supplied). Called via
 -- supabase.rpc('create_order', { payload }) from the client so a partial
 -- failure never leaves an order without its items (or vice versa).
+--
+-- SECURITY: every price (line unit_price, subtotal, delivery_fee,
+-- discount_amount, total, and the seeded payment.amount) is computed here
+-- from server-truth product/product_variant/delivery_option/discount_code
+-- rows — the client payload's own price fields are read only for display
+-- fallback on the client before this call returns, and are never trusted.
+-- See patch_010_price_integrity.sql for why: the previous version inserted
+-- payload->>'total' etc. directly, so a tampered RPC payload could pay any
+-- amount for an order (the Paystack amount checks in paystack-webhook/
+-- verify-payment only ever compared against that same client-set number).
 create or replace function create_order(payload jsonb) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare
@@ -334,6 +443,20 @@ declare
   v_order_id uuid;
   v_order_number text;
   v_item jsonb;
+  v_product product;
+  v_selections jsonb;
+  v_qty integer;
+  v_unit_price integer;
+  v_line_total integer;
+  v_subtotal integer := 0;
+  v_has_unpriced boolean := false;
+  v_priced_items jsonb[] := '{}';
+  v_delivery_option delivery_option;
+  v_delivery_fee integer := 0;
+  v_discount discount_code;
+  v_discount_amount integer := 0;
+  v_total integer;
+  v_fulfilment text;
 begin
   select id into v_customer_id from customer where auth_user_id = auth.uid();
   if v_customer_id is null then
@@ -344,6 +467,72 @@ begin
   -- `extensions` schema on Supabase, outside this function's search_path.
   v_order_number := 'A11-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8));
 
+  v_fulfilment := payload->>'fulfilment_type';
+
+  -- Delivery fee: trust the server's delivery_option row, never the
+  -- client's delivery_fee number.
+  if v_fulfilment = 'delivery' and nullif(payload->>'delivery_option_id','') is not null then
+    select * into v_delivery_option from delivery_option
+      where id = (payload->>'delivery_option_id')::uuid and active;
+    if v_delivery_option is null then
+      raise exception 'Invalid or inactive delivery option';
+    end if;
+    v_delivery_fee := v_delivery_option.fee;
+  end if;
+
+  -- Discount: trust the server's discount_code row (already atomically
+  -- redeemed — times_used incremented — by redeem_discount_code() when the
+  -- customer applied the code), never the client's discount_amount number.
+  if nullif(payload->>'discount_code_id','') is not null then
+    select * into v_discount from discount_code
+      where id = (payload->>'discount_code_id')::uuid and active;
+    if v_discount is null then
+      raise exception 'Invalid or inactive discount code';
+    end if;
+  end if;
+
+  -- Price every line item from product/product_variant.
+  for v_item in select * from jsonb_array_elements(payload->'items') loop
+    if nullif(v_item->>'product_id','') is null then
+      raise exception 'order item missing product_id';
+    end if;
+
+    select * into v_product from product where id = (v_item->>'product_id')::uuid and is_active;
+    if v_product is null then
+      raise exception 'Unknown or inactive product %', v_item->>'product_id';
+    end if;
+
+    v_selections := coalesce(v_item->'variant_selections', '{}'::jsonb);
+    v_qty := (v_item->>'quantity')::int;
+    v_unit_price := price_order_item(v_product, v_selections);
+    v_line_total := case when v_unit_price is null then null else v_unit_price * v_qty end;
+
+    if v_line_total is null then
+      v_has_unpriced := true;
+    else
+      v_subtotal := v_subtotal + v_line_total;
+    end if;
+
+    v_priced_items := v_priced_items || jsonb_build_object(
+      'product_id', v_item->>'product_id',
+      'name', coalesce(v_product.name, v_item->>'name'),
+      'variant_selections', v_selections,
+      'quantity', v_qty,
+      'unit_price', v_unit_price,
+      'line_total', v_line_total,
+      'image_url', v_item->>'image_url'
+    );
+  end loop;
+
+  if v_discount is not null then
+    v_discount_amount := case
+      when v_discount.type = 'percentage' then least(v_subtotal, round(v_subtotal * v_discount.value / 100.0)::integer)
+      else least(v_subtotal, v_discount.value)
+    end;
+  end if;
+
+  v_total := greatest(0, v_subtotal + v_delivery_fee - v_discount_amount);
+
   insert into "order" (
     order_number, customer_id, status, fulfilment_type, delivery_option_id,
     address_text, preferred_date, preferred_time, customer_name, customer_phone,
@@ -352,7 +541,7 @@ begin
   ) values (
     v_order_number, v_customer_id,
     coalesce(payload->>'status', 'pending'),
-    payload->>'fulfilment_type',
+    v_fulfilment,
     nullif(payload->>'delivery_option_id','')::uuid,
     payload->>'address_text',
     (payload->>'preferred_date')::date,
@@ -361,28 +550,33 @@ begin
     payload->>'customer_phone',
     payload->>'customer_email',
     payload->>'special_instructions',
-    nullif(payload->>'discount_code_id','')::uuid,
-    (payload->>'subtotal')::integer,
-    coalesce((payload->>'delivery_fee')::integer, 0),
-    coalesce((payload->>'discount_amount')::integer, 0),
-    (payload->>'total')::integer,
-    coalesce((payload->>'has_unpriced_items')::boolean, false),
+    v_discount.id,
+    v_subtotal,
+    v_delivery_fee,
+    v_discount_amount,
+    v_total,
+    v_has_unpriced,
     payload->>'fallback_channel'
   ) returning id into v_order_id;
 
-  for v_item in select * from jsonb_array_elements(payload->'items') loop
+  for v_item in select * from unnest(v_priced_items) loop
     insert into order_item (order_id, product_id, product_name_snapshot, variant_selections, quantity, unit_price, line_total, image_url)
     values (
       v_order_id,
       nullif(v_item->>'product_id','')::uuid,
       v_item->>'name',
-      coalesce(v_item->'variant_selections', '{}'::jsonb),
+      v_item->'variant_selections',
       (v_item->>'quantity')::int,
       nullif(v_item->>'unit_price','')::integer,
       nullif(v_item->>'line_total','')::integer,
       v_item->>'image_url'
     );
   end loop;
+
+  if nullif(payload->>'payment_reference','') is not null then
+    insert into payment (order_id, reference, amount, status)
+    values (v_order_id, payload->>'payment_reference', v_total, 'pending');
+  end if;
 
   return jsonb_build_object('id', v_order_id, 'order_number', v_order_number);
 end;

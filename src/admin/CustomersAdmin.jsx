@@ -1,36 +1,74 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, Users } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient.js';
 import { fmtNaira } from '../lib/format.js';
 import { AdminEmpty, AdminLoading, AdminPage, AdminPageHeader, AdminStatusBadge, AdminToolbar } from './AdminPrimitives.jsx';
 import { toast } from '../components/ui/toast.jsx';
+import { Button } from '../components/ui/button.jsx';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '../components/ui/input-group.jsx';
+
+// "Load more" page size — a hard .limit(300)/.limit(1000) with no way to
+// see anything past it would otherwise silently hide customers/orders as
+// the customer base grows past that number.
+const PAGE_SIZE = 50;
 
 export default function CustomersAdmin() {
   const [customers, setCustomers] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [ordersByCustomer, setOrdersByCustomer] = useState({});
   const [search, setSearch] = useState('');
   const [includeGuests, setIncludeGuests] = useState(false);
   const [savingId, setSavingId] = useState(null);
 
-  function load() {
-    let query = supabase.from('customer').select('*').order('created_at', { ascending: false }).limit(300);
+  function baseQuery() {
+    let query = supabase.from('customer').select('*').order('created_at', { ascending: false });
     if (!includeGuests) query = query.eq('is_guest', false);
-    return Promise.all([
-      query,
-      supabase.from('order').select('id, customer_id, total, status').limit(1000),
-    ]).then(([customerResult, orderResult]) => {
-      setCustomers(customerResult.error ? [] : customerResult.data || []);
+    const term = search.trim();
+    if (term) query = query.or(`name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`);
+    return query;
+  }
+
+  // Orders are fetched only for the customer rows actually on screen
+  // (.in on the loaded page's ids), not the whole order table — this stays
+  // cheap no matter how large the order history grows.
+  function loadOrdersFor(customerRows) {
+    const ids = customerRows.map((c) => c.id);
+    if (!ids.length) return Promise.resolve({});
+    return supabase.from('order').select('id, customer_id, total, status').in('customer_id', ids).then(({ data, error }) => {
       const grouped = {};
-      for (const order of orderResult.error ? [] : orderResult.data || []) {
+      for (const order of error ? [] : data || []) {
         if (!grouped[order.customer_id]) grouped[order.customer_id] = [];
         grouped[order.customer_id].push(order);
       }
-      setOrdersByCustomer(grouped);
+      return grouped;
     });
   }
 
-  useEffect(() => { load(); }, [includeGuests]);
+  function load() {
+    baseQuery().range(0, PAGE_SIZE - 1).then(async ({ data, error }) => {
+      const rows = error ? [] : data || [];
+      setCustomers(rows);
+      setHasMore(!error && rows.length === PAGE_SIZE);
+      setOrdersByCustomer(await loadOrdersFor(rows));
+    });
+  }
+
+  function loadMore() {
+    setLoadingMore(true);
+    baseQuery().range(customers.length, customers.length + PAGE_SIZE - 1).then(async ({ data, error }) => {
+      if (!error) {
+        const nextRows = data || [];
+        const moreOrders = await loadOrdersFor(nextRows);
+        setCustomers((prev) => [...prev, ...nextRows]);
+        setOrdersByCustomer((prev) => ({ ...prev, ...moreOrders }));
+        setHasMore(nextRows.length === PAGE_SIZE);
+      }
+      setLoadingMore(false);
+    });
+  }
+
+  useEffect(() => { load(); }, [includeGuests, search]);
 
   async function updateCustomer(customer, patch) {
     setSavingId(customer.id);
@@ -40,10 +78,7 @@ export default function CustomersAdmin() {
     setSavingId(null);
   }
 
-  const filtered = useMemo(() => (customers || []).filter((customer) => {
-    const query = search.trim().toLowerCase();
-    return !query || [customer.name, customer.email, customer.phone].some((value) => (value || '').toLowerCase().includes(query));
-  }), [customers, search]);
+  const filtered = customers || [];
 
   return (
     <AdminPage>
@@ -70,6 +105,7 @@ export default function CustomersAdmin() {
               </tr>;
             })}
           </tbody></table></div> : <AdminEmpty icon={Users}>No customers match this view.</AdminEmpty>}
+          {hasMore && <div className="admin-panel__footer"><Button variant="secondary" size="sm" disabled={loadingMore} onClick={loadMore}>{loadingMore ? 'Loading…' : 'Load more customers'}</Button></div>}
         </section>
       )}
     </AdminPage>

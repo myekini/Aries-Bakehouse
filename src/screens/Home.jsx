@@ -1,3 +1,5 @@
+'use client';
+
 import { Link } from 'react-router-dom';
 import { useCategories, useHomepageFeatured } from '../hooks/useCatalog.js';
 import ProductCard from '../components/ProductCard.jsx';
@@ -8,9 +10,13 @@ import CounterRail from '../components/CounterRail.jsx';
 import SignatureLoafSpotlight from '../components/SignatureLoafSpotlight.jsx';
 import { Button } from '../components/ui/button.jsx';
 
-export default function Home() {
-  const { data: categories, loading: categoriesLoading } = useCategories();
-  const { data: featured, loading: featuredLoading } = useHomepageFeatured();
+// `categories`/`featured`, when passed, are server-fetched by
+// src/app/page.jsx under ISR — see the `initial` param comment in
+// useCatalog.js for why that skips the client fetch these hooks would
+// otherwise do.
+export default function Home({ categories: initialCategories, featured: initialFeatured } = {}) {
+  const { data: categories, loading: categoriesLoading } = useCategories(initialCategories);
+  const { data: featured, loading: featuredLoading } = useHomepageFeatured(initialFeatured);
 
   return (
     <div className="home-page">

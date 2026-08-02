@@ -63,6 +63,11 @@ export default function Checkout() {
   const [attempted, setAttempted] = useState(false);
   const paymentDialogRef = useRef(null);
   const fieldRefs = useRef({});
+  // Client-side-only throttle against discount-code brute-forcing — see
+  // applyDiscount() below for why this exists alongside the server-side
+  // redeem_discount_code() check.
+  const discountFailCountRef = useRef(0);
+  const discountCooldownUntilRef = useRef(0);
 
   const discountAmount = discount?.amount || 0;
   const total = Math.max(0, subtotal - discountAmount);
@@ -196,6 +201,11 @@ export default function Checkout() {
   }
 
   async function applyDiscount() {
+    if (Date.now() < discountCooldownUntilRef.current) {
+      setDiscountStatus('error');
+      setDiscountMsg('Too many attempts — please wait a moment before trying again.');
+      return;
+    }
     if (!discountCode.trim()) {
       setDiscountStatus('error');
       setDiscountMsg('Enter a discount code first.');
@@ -205,11 +215,17 @@ export default function Checkout() {
     setDiscountMsg('');
     try {
       const applied = await redeemDiscountCode(discountCode, subtotal);
+      discountFailCountRef.current = 0;
       setDiscount(applied);
       setDiscountStatus('applied');
       setDiscountMsg(`${applied.code} applied.`);
       trackEvent('discount_code_used', { code: applied.code, amount: applied.amount });
     } catch (error) {
+      discountFailCountRef.current += 1;
+      if (discountFailCountRef.current >= 5) {
+        discountCooldownUntilRef.current = Date.now() + 30_000;
+        discountFailCountRef.current = 0;
+      }
       setDiscount(null);
       setDiscountStatus('error');
       setDiscountMsg(error.message);

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/logo.svg" alt="Aries 11 Bakehouse" width="220" />
+  <img src="public/uploads/Aries11_Primary_Light.svg" alt="Aries 11 Bakehouse" width="220" />
 </p>
 
 <h1 align="center">Aries 11 Bakehouse</h1>

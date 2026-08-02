@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useMemo, useState } from 'react';
 import { Search as SearchIcon } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
@@ -15,14 +17,17 @@ import {
   BreadcrumbSeparator,
 } from '../components/ui/breadcrumb.jsx';
 
-export default function Menu() {
+// `categories`/`products`, when passed, are server-fetched by
+// src/app/menu/page.jsx (and src/app/menu/[category]/page.jsx) under ISR —
+// see the `initial` param comment in useCatalog.js.
+export default function Menu({ categories: initialCategories, products: initialProducts } = {}) {
   const { category: categoryFromRoute } = useParams();
   const [category, setCategory] = useState(categoryFromRoute || 'all');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('featured');
 
-  const { data: categories, loading: categoriesLoading } = useCategories();
-  const { data: products, loading: productsLoading } = useProducts();
+  const { data: categories, loading: categoriesLoading } = useCategories(initialCategories);
+  const { data: products, loading: productsLoading } = useProducts(initialProducts);
 
   useEffect(() => {
     setCategory(categoryFromRoute || 'all');

@@ -19,7 +19,11 @@ export default function ProductsList() {
   const [savingId, setSavingId] = useState(null);
 
   function load() {
-    supabase.from('product').select('*, product_category(id, name), product_variant(id), product_image(id, url, alt_text, is_primary, sort_order)').order('sort_order')
+    // No "Load more" here (unlike Orders/Customers) — a bakery's catalogue
+    // is inherently small and bounded by the physical menu, not by
+    // customer/order volume. The .limit() is just a defensive cap so a
+    // future data-entry mistake can't return an unbounded row set.
+    supabase.from('product').select('*, product_category(id, name), product_variant(id), product_image(id, url, alt_text, is_primary, sort_order)').order('sort_order').limit(500)
       .then(({ data, error }) => setProducts(error ? [] : data));
   }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CalendarDays, ClipboardList } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button.jsx';
@@ -14,37 +14,86 @@ const STATUS_LABEL = {
   ready_or_out: 'Ready / out', completed: 'Completed', cancelled: 'Cancelled',
 };
 
+// Page size for the "Load more" pattern below — a hard .limit(300) with no
+// way to see anything past it would otherwise silently hide older/newer
+// orders as order volume grows past that number.
+const PAGE_SIZE = 50;
+
 export default function OrdersList() {
   const [orders, setOrders] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [fulfilmentFilter, setFulfilmentFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [savingId, setSavingId] = useState(null);
+  const [counts, setCounts] = useState({});
 
-  function load() {
-    let query = supabase.from('order').select('*, order_item(id)').order('preferred_date', { ascending: true }).order('created_at', { ascending: false }).limit(300);
+  function baseQuery() {
+    let query = supabase.from('order').select('*, order_item(id)').order('preferred_date', { ascending: true }).order('created_at', { ascending: false });
+    if (statusFilter !== 'all') query = query.eq('status', statusFilter);
+    if (fulfilmentFilter !== 'all') query = query.eq('fulfilment_type', fulfilmentFilter);
     if (dateFrom) query = query.gte('preferred_date', dateFrom);
     if (dateTo) query = query.lte('preferred_date', dateTo);
-    query.then(({ data, error }) => setOrders(error ? [] : data));
+    return query;
   }
 
-  useEffect(load, [dateFrom, dateTo]);
+  function load() {
+    baseQuery().range(0, PAGE_SIZE - 1).then(({ data, error }) => {
+      setOrders(error ? [] : data);
+      setHasMore(!error && data.length === PAGE_SIZE);
+    });
+  }
 
-  const filtered = useMemo(() => (orders || [])
-    .filter((order) => statusFilter === 'all' || order.status === statusFilter)
-    .filter((order) => fulfilmentFilter === 'all' || order.fulfilment_type === fulfilmentFilter), [orders, statusFilter, fulfilmentFilter]);
+  function loadMore() {
+    setLoadingMore(true);
+    baseQuery().range(orders.length, orders.length + PAGE_SIZE - 1).then(({ data, error }) => {
+      if (!error) {
+        setOrders((prev) => [...prev, ...data]);
+        setHasMore(data.length === PAGE_SIZE);
+      }
+      setLoadingMore(false);
+    });
+  }
 
-  const counts = useMemo(() => STATUSES.reduce((result, status) => ({
-    ...result,
-    [status]: (orders || []).filter((order) => order.status === status).length,
-  }), {}), [orders]);
+  // Status counts respect the date/fulfilment filters but not the status
+  // filter itself, so the tally row stays a full breakdown to click into —
+  // count-only queries (head: true) so this scales regardless of how many
+  // orders exist, unlike deriving counts from a capped/paged fetch.
+  function loadCounts() {
+    let base = supabase.from('order').select('id', { count: 'exact', head: true });
+    if (fulfilmentFilter !== 'all') base = base.eq('fulfilment_type', fulfilmentFilter);
+    if (dateFrom) base = base.gte('preferred_date', dateFrom);
+    if (dateTo) base = base.lte('preferred_date', dateTo);
+    Promise.all([
+      base,
+      ...STATUSES.map((status) => {
+        let q = supabase.from('order').select('id', { count: 'exact', head: true }).eq('status', status);
+        if (fulfilmentFilter !== 'all') q = q.eq('fulfilment_type', fulfilmentFilter);
+        if (dateFrom) q = q.gte('preferred_date', dateFrom);
+        if (dateTo) q = q.lte('preferred_date', dateTo);
+        return q;
+      }),
+    ]).then(([all, ...perStatus]) => {
+      setCounts({
+        all: all.count || 0,
+        ...Object.fromEntries(STATUSES.map((status, i) => [status, perStatus[i].count || 0])),
+      });
+    });
+  }
+
+  useEffect(load, [dateFrom, dateTo, statusFilter, fulfilmentFilter]);
+  useEffect(loadCounts, [dateFrom, dateTo, fulfilmentFilter]);
+
+  const filtered = orders || [];
 
   async function updateStatus(order, status) {
     setSavingId(order.id);
     const { error } = await supabase.from('order').update({ status, updated_at: new Date().toISOString() }).eq('id', order.id);
     if (error) toast.error('Order status was not updated', { description: error.message });
     await load();
+    await loadCounts();
     setSavingId(null);
   }
 
@@ -71,7 +120,7 @@ export default function OrdersList() {
       </AdminToolbar>
 
       <div className="admin-filter-stats" aria-label="Order status totals">
-        <button type="button" className={statusFilter === 'all' ? 'is-active' : ''} onClick={() => setStatusFilter('all')}><strong>{orders?.length || 0}</strong><span>All</span></button>
+        <button type="button" className={statusFilter === 'all' ? 'is-active' : ''} onClick={() => setStatusFilter('all')}><strong>{counts.all || 0}</strong><span>All</span></button>
         {STATUSES.map((status) => <button key={status} type="button" className={statusFilter === status ? 'is-active' : ''} onClick={() => setStatusFilter(status)}><strong>{counts[status] || 0}</strong><span>{STATUS_LABEL[status]}</span></button>)}
       </div>
 
@@ -88,6 +137,7 @@ export default function OrdersList() {
               <td className="is-numeric"><strong>{fmtNaira(order.total)}</strong><span className="admin-table__mobile-status"><AdminStatusBadge status={order.status}>{STATUS_LABEL[order.status]}</AdminStatusBadge></span></td>
             </tr>)}
           </tbody></table></div> : <AdminEmpty icon={ClipboardList}>No orders match these filters.</AdminEmpty>}
+          {hasMore && <div className="admin-panel__footer"><Button variant="secondary" size="sm" disabled={loadingMore} onClick={loadMore}>{loadingMore ? 'Loading…' : 'Load more orders'}</Button></div>}
         </section>
       )}
     </AdminPage>

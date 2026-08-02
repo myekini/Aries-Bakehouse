@@ -59,6 +59,19 @@ export async function getOrder(id) {
 // no direct INSERT policy on payment (§3), so this is the one
 // client-triggerable path allowed to create it (via the SECURITY DEFINER
 // create_order function).
+//
+// PRICING: every price field below (subtotal, discountAmount, item price/
+// line_total) is sent for the client's own optimistic display and for the
+// Paystack popup's amount= before this call returns — create_order()
+// ignores all of it and recomputes unit_price/subtotal/delivery_fee/
+// discount_amount/total itself from product/product_variant/delivery_option/
+// discount_code, then seeds payment.amount from ITS total, not this one
+// (see supabase/patch_010_price_integrity.sql). If this client-side total
+// and the server-recomputed total ever disagree, the Paystack charge won't
+// match payment.amount and the webhook will reject it as a mismatch rather
+// than silently trusting the client — so keep the pricing rules here in
+// sync with price_order_item() in schema.sql if the menu's pricing logic
+// changes.
 export async function saveOrder(orderData) {
   const payload = {
     status: orderData.status,

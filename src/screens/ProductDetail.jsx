@@ -505,7 +505,7 @@ function makeBananaBreadConfig(rules) {
       return (
         <>
           <div style={{ marginTop: 32 }}>
-            <div style={sectionLabel}>Size</div>
+            <div className="product-composer__section-label">Size</div>
             <PillSelector ariaLabel="Size"
               options={rules.sizes.map((s) => ({ id: s.id, label: `${s.label} · ${fmtNaira(s.price)}` }))}
               value={state.size}
@@ -513,7 +513,7 @@ function makeBananaBreadConfig(rules) {
           </div>
           <div style={{ marginTop: 28 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <div style={sectionLabel}>Topping</div>
+              <div className="product-composer__section-label">Topping</div>
               {mixedAllowed && (
                 <button
                   type="button"
@@ -562,13 +562,13 @@ function makeBrowniesConfig(rules) {
       return (
         <>
           <div style={{ marginTop: 32 }}>
-            <div style={sectionLabel}>Box Size</div>
+            <div className="product-composer__section-label">Box Size</div>
             <PillSelector ariaLabel="Box size" options={rules.sizes.map((s) => ({ id: s.id, label: s.label }))} value={state.size}
               onChange={(size) => setState((s) => ({ ...s, size }))} />
           </div>
           <div style={{ marginTop: 28 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <div style={sectionLabel}>Flavour</div>
+              <div className="product-composer__section-label">Flavour</div>
               <button
                 type="button"
                 onClick={() => setState((s) => ({ ...s, mixed: !s.mixed }))}
@@ -598,7 +598,7 @@ function makePastriesConfig(rules) {
     Fields({ state, setState }) {
       return (
           <div style={{ marginTop: 32 }}>
-            <div style={sectionLabel}>Selection</div>
+            <div className="product-composer__section-label">Selection</div>
           <SwatchPicker ariaLabel="Pastry selection" options={rules.options.map((o) => ({ id: o.id, label: o.label, image: o.icon || o.image }))} value={state.option}
             onChange={(option) => setState((s) => ({ ...s, option }))} />
         </div>
@@ -619,7 +619,7 @@ function makeSmallChopsConfig(rules) {
     Fields({ state, setState }) {
       return (
           <div style={{ marginTop: 32 }}>
-            <div style={sectionLabel}>Platter</div>
+            <div className="product-composer__section-label">Platter</div>
           <SwatchPicker ariaLabel="Platter" options={rules.platters.map((p) => ({ id: p.id, label: p.label, image: p.icon || p.image }))} value={state.platter}
             onChange={(platter) => setState((s) => ({ ...s, platter }))} />
           <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 10 }}>
@@ -657,12 +657,12 @@ function makeCakeConfig(rules) {
       return (
         <>
           <div style={{ marginTop: 32 }}>
-            <div style={sectionLabel}>Flavour</div>
+            <div className="product-composer__section-label">Flavour</div>
             <SwatchPicker ariaLabel="Flavour" options={rules.flavours.map((f) => ({ id: f.id, label: f.label, image: f.icon || f.image }))} value={state.flavour}
               onChange={(flavour) => setState((s) => ({ ...s, flavour }))} />
           </div>
           <div style={{ marginTop: 28 }}>
-            <div style={sectionLabel}>Cup Size</div>
+            <div className="product-composer__section-label">Cup Size</div>
             <PillSelector ariaLabel="Cup size" options={rules.sizes.map((s) => ({ id: s.id, label: s.label }))} value={state.size}
               onChange={(size) => setState((s) => ({ ...s, size }))} />
           </div>

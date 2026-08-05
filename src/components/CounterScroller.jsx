@@ -5,10 +5,12 @@ import { motion, useMotionValueEvent, useReducedMotion, useScroll, useTransform 
 import { Link } from 'react-router-dom';
 
 // Scroll-scrubbed product showcase: the media panel pins while each
-// product cross-fades from its first frame to its second as you scroll,
-// so the customer paces the reveal themselves (unlike the timed hero).
-// To use dedicated transition footage, swap each product's `frames` pair
-// for its two transition stills — same filenames, nothing else changes.
+// product's poster frame yields to its own footage as you scroll it into
+// the centre of the section, so the customer paces the reveal themselves
+// (unlike the timed hero). Brownies and pastries reuse the same clips cut
+// for the old 6-slide hero — they lost their slot when the hero trimmed to
+// 3, so this is where that footage lives now instead of going unused.
+// Parfait has no clip yet, so it cross-fades between its two stills instead.
 const SHOWCASE = [
   {
     id: 'brownies',
@@ -17,7 +19,8 @@ const SHOWCASE = [
     copy: 'Pick a box of 4, 6, 9 or 16 and finish it in Biscoff, Oreo, coconut crunch, white or dark chocolate.',
     href: '/product/brownie-box',
     cta: 'Build a Brownie Box',
-    frames: ['/uploads/hero-carousel/brownies-hold.webp', '/uploads/aries11-brownies-box-9-biscoff.webp'],
+    poster: '/uploads/hero-carousel/brownies-hold.webp',
+    video: '/uploads/hero-carousel/brownies.mp4',
   },
   {
     id: 'pastries',
@@ -26,7 +29,8 @@ const SHOWCASE = [
     copy: 'Golden pastries packed as a mixed tray or a full tray of your favourite, ready for the table.',
     href: '/product/mixed-pastry-tray',
     cta: 'Choose Your Pastries',
-    frames: ['/uploads/aries11-pastries-mixedtray-complete.webp', '/uploads/aries11-pastries-suyapie-single.webp'],
+    poster: '/uploads/aries11-pastries-mixedtray-complete.webp',
+    video: '/uploads/hero-carousel/pastries.mp4',
   },
   {
     id: 'parfait',
@@ -35,26 +39,27 @@ const SHOWCASE = [
     copy: 'Chocolate or red velvet cake layered with cream, made to order in two sizes.',
     href: '/product/cake-parfait',
     cta: 'Choose a Parfait',
-    frames: ['/uploads/aries11-caketreats-parfait-chocolate.png', '/uploads/aries11-caketreats-parfait-redvelvet.png'],
+    poster: '/uploads/aries11-caketreats-parfait-chocolate.png',
+    secondFrame: '/uploads/aries11-caketreats-parfait-redvelvet.png',
     contain: true, // studio cutouts, not photos — letterbox them on cream instead of cropping
   },
 ];
 
-function ScrubbedFrame({ product, index, progress }) {
-  const count = SHOWCASE.length;
+function ScrubbedFrame({ product, index, count, progress, isActive, allowVideo }) {
   const start = index / count;
   const end = (index + 1) / count;
   const mid = (start + end) / 2;
-  // Each product owns a third of the scroll. Its first frame fades in at
-  // the segment start, cross-fades to the second frame across the middle,
-  // and the whole pair yields to the next product at the segment end.
+  // Each product owns a slice of the scroll. Its poster fades in at the
+  // segment start, its footage (video or second still) cross-fades across
+  // the middle, and the whole pair yields to the next product at the end.
   const groupOpacity = useTransform(
     progress,
     [Math.max(0, start - 0.04), start + 0.02, end - 0.02, Math.min(1, end + 0.04)],
     [index === 0 ? 1 : 0, 1, 1, index === count - 1 ? 1 : 0],
   );
-  const frameTwoOpacity = useTransform(progress, [mid - 0.06, mid + 0.06], [0, 1]);
+  const revealOpacity = useTransform(progress, [mid - 0.06, mid + 0.06], [0, 1]);
   const drift = useTransform(progress, [start, end], [12, -12]);
+  const showVideo = Boolean(product.video) && allowVideo && isActive;
 
   return (
     <motion.div
@@ -62,8 +67,21 @@ function ScrubbedFrame({ product, index, progress }) {
       style={{ opacity: groupOpacity }}
       aria-hidden="true"
     >
-      <motion.img src={product.frames[0]} alt="" loading={index === 0 ? 'eager' : 'lazy'} decoding="async" style={{ y: drift }} />
-      <motion.img src={product.frames[1]} alt="" loading="lazy" decoding="async" style={{ y: drift, opacity: frameTwoOpacity }} />
+      <motion.img src={product.poster} alt="" loading={index === 0 ? 'eager' : 'lazy'} decoding="async" style={{ y: drift }} />
+      {showVideo ? (
+        <motion.video
+          key={product.id}
+          src={product.video}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          style={{ y: drift, opacity: revealOpacity }}
+        />
+      ) : product.secondFrame ? (
+        <motion.img src={product.secondFrame} alt="" loading="lazy" decoding="async" style={{ y: drift, opacity: revealOpacity }} />
+      ) : null}
     </motion.div>
   );
 }
@@ -72,6 +90,7 @@ export default function CounterScroller() {
   const trackRef = useRef(null);
   const reduceMotion = useReducedMotion();
   const [active, setActive] = useState(0);
+  const saveData = typeof navigator !== 'undefined' && Boolean(navigator.connection?.saveData);
   const { scrollYProgress } = useScroll({ target: trackRef, offset: ['start start', 'end end'] });
 
   useMotionValueEvent(scrollYProgress, 'change', (value) => {
@@ -91,7 +110,7 @@ export default function CounterScroller() {
         <div className="counter-scroller__static-grid">
           {SHOWCASE.map((product) => (
             <Link key={product.id} to={product.href} className="counter-scroller__static-card">
-              <img src={product.frames[0]} alt="" loading="lazy" decoding="async" />
+              <img src={product.poster} alt="" loading="lazy" decoding="async" />
               <strong>{product.kicker}</strong>
               <span>{product.copy}</span>
             </Link>
@@ -131,7 +150,15 @@ export default function CounterScroller() {
           </div>
           <div className="counter-scroller__media">
             {SHOWCASE.map((item, index) => (
-              <ScrubbedFrame key={item.id} product={item} index={index} progress={scrollYProgress} />
+              <ScrubbedFrame
+                key={item.id}
+                product={item}
+                index={index}
+                count={SHOWCASE.length}
+                progress={scrollYProgress}
+                isActive={index === active}
+                allowVideo={!saveData}
+              />
             ))}
           </div>
         </div>

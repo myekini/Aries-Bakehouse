@@ -3293,7 +3293,8 @@ input[readonly] {
   inset: 0;
 }
 
-.counter-scroller__frame img {
+.counter-scroller__frame img,
+.counter-scroller__frame video {
   position: absolute;
   inset: -16px; /* bleed past the panel so the scroll drift never shows edges */
   width: calc(100% + 32px);
@@ -3301,7 +3302,8 @@ input[readonly] {
   object-fit: cover;
 }
 
-.counter-scroller__frame.is-contained img {
+.counter-scroller__frame.is-contained img,
+.counter-scroller__frame.is-contained video {
   object-fit: contain;
   padding: 32px;
 }
@@ -3371,6 +3373,47 @@ input[readonly] {
 
   .counter-scroller__static-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .counter-scroller {
+    /* Shorter scroll runway on phones — the same 100svh-per-product pace
+       used on desktop reads as "stuck" on a small screen with less to
+       look at per segment. */
+    height: 240svh;
+  }
+
+  .counter-scroller__inner {
+    padding-top: var(--space-6);
+    padding-bottom: var(--space-6);
+  }
+
+  .counter-scroller__media {
+    aspect-ratio: 4 / 3;
+    max-height: 36svh;
+  }
+
+  .counter-scroller__copy h2 {
+    font-size: 28px;
+  }
+
+  .counter-scroller__panel {
+    margin-top: var(--space-3);
+    min-height: 180px;
+  }
+
+  .counter-scroller__panel h3 {
+    font-size: 20px;
+  }
+
+  .counter-scroller__panel p {
+    font-size: 14px;
+    max-width: none;
+  }
+
+  .counter-scroller--static {
+    padding: var(--space-6) 0;
   }
 }
 

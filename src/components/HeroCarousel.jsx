@@ -5,13 +5,17 @@ import Image from 'next/image';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 
-const SLIDE_MS = 4800;
+const SLIDE_MS = 5200;
 const PHOTO_HOLD_MS = 700;
 const VIDEO_START_TIMEOUT_MS = 2400;
 const INITIAL_VIDEO_STATE = { slide: -1, complete: false, failed: false };
 
+// Three slides only — brand first, then the two strongest configurable
+// products. Brownies/pastries/parfait get their own scroll moment in
+// CounterScroller instead of dying unseen on slides 4–6.
 const HERO_SLIDES = [
   {
+    label: 'The Bakehouse',
     eyebrow: 'Aries 11 Bakehouse',
     title: 'Freshly Made Treats for Every',
     accent: 'Craving',
@@ -23,10 +27,11 @@ const HERO_SLIDES = [
     cta: 'Explore the Menu',
   },
   {
-    eyebrow: 'Banana Bread',
-    title: 'Seven toppings. One loaf made for',
-    accent: 'You',
-    copy: 'Ripe banana loaves, baked fresh with your choice of seven toppings.',
+    label: 'Banana Bread',
+    eyebrow: 'Signature Banana Bread',
+    title: 'Ripe bananas, seven finishes, one',
+    accent: 'Loaf',
+    copy: 'Baked fresh to order with your choice of seven toppings, from Biscoff to nuts crunch.',
     image: '/uploads/hero-carousel/banana-bread-hold.webp',
     video: '/uploads/hero-carousel/banana-bread.mp4',
     objectPosition: 'center 54%',
@@ -35,53 +40,17 @@ const HERO_SLIDES = [
     cta: 'Configure a Loaf',
   },
   {
+    label: 'Small Chops',
     eyebrow: 'Small Chops',
-    title: 'Party trays that arrive ready to',
-    accent: 'Share',
-    copy: 'Golden small-chops platters packed for meetings, birthdays, and low-stress hosting.',
+    title: 'Golden platters that carry the',
+    accent: 'Party',
+    copy: 'Small-chops trays packed for meetings, birthdays, and low-stress hosting.',
     image: '/uploads/aries11-smallchops-platter-small.webp',
     video: '/uploads/hero-carousel/small-chops.mp4',
     objectPosition: 'center 58%',
     mobileObjectPosition: 'center 43%',
     href: '/product/small-chops-platter',
     cta: 'Build a Platter',
-  },
-  {
-    eyebrow: 'Brownies',
-    title: 'Fudgy boxes, finished your',
-    accent: 'Way',
-    copy: 'Choose your box size and one of five rich flavours, from Biscoff to dark chocolate.',
-    image: '/uploads/hero-carousel/brownies-hold.webp',
-    video: '/uploads/hero-carousel/brownies.mp4',
-    containMedia: true,
-    objectPosition: 'center 52%',
-    mobileObjectPosition: 'center 40%',
-    href: '/product/brownie-box',
-    cta: 'Build a Brownie Box',
-  },
-  {
-    eyebrow: 'Pastries',
-    title: 'Golden pastry trays made to',
-    accent: 'Share',
-    copy: 'Suya pie, fish pie and sausage rolls, packed as a mixed tray or your chosen favourite.',
-    image: '/uploads/aries11-pastries-mixedtray-complete.webp',
-    video: '/uploads/hero-carousel/pastries.mp4',
-    containMedia: true,
-    objectPosition: 'center 54%',
-    mobileObjectPosition: 'center 40%',
-    href: '/product/mixed-pastry-tray',
-    cta: 'Choose Your Pastries',
-  },
-  {
-    eyebrow: 'Cake Parfait',
-    title: 'Soft cake, cool cream, one proper',
-    accent: 'Treat',
-    copy: 'Chocolate or red velvet cake layered with cream in two made-to-order sizes.',
-    image: '/uploads/hero-carousel/cake-parfait.webp',
-    objectPosition: 'center 56%',
-    mobileObjectPosition: 'center 42%',
-    href: '/product/cake-parfait',
-    cta: 'Choose a Parfait',
   },
 ];
 
@@ -91,9 +60,11 @@ export default function HeroCarousel() {
   const [active, setActive] = useState(0);
   const [videoState, setVideoState] = useState(INITIAL_VIDEO_STATE);
   const [pageVisible, setPageVisible] = useState(true);
+  const [paused, setPaused] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
   const saveData = typeof navigator !== 'undefined' && Boolean(navigator.connection?.saveData);
   const slide = HERO_SLIDES[active];
-  const carouselRunning = pageVisible;
+  const carouselRunning = pageVisible && !paused;
   const videoComplete = videoState.slide === active && videoState.complete;
   const videoFailed = videoState.slide === active && videoState.failed;
   const canPlayVideo = Boolean(slide.video && !reduceMotion && !saveData && !videoComplete);
@@ -118,6 +89,7 @@ export default function HeroCarousel() {
     const completedVideo = Boolean(slide.video && !reduceMotion && videoComplete && !videoFailed);
     const timer = window.setTimeout(() => {
       setVideoState(INITIAL_VIDEO_STATE);
+      setVideoProgress(0);
       setActive((index) => (index + 1) % HERO_SLIDES.length);
     }, completedVideo ? PHOTO_HOLD_MS : SLIDE_MS);
     return () => window.clearTimeout(timer);
@@ -125,7 +97,11 @@ export default function HeroCarousel() {
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !canPlayVideo || !carouselRunning) return undefined;
+    if (!video || !canPlayVideo) return undefined;
+    if (!carouselRunning) {
+      video.pause();
+      return undefined;
+    }
 
     const play = () => {
       video.play().catch(() => {
@@ -154,13 +130,31 @@ export default function HeroCarousel() {
     };
   }, [active, canPlayVideo, carouselRunning]);
 
+  function selectSlide(index) {
+    if (index === active) return;
+    setVideoState(INITIAL_VIDEO_STATE);
+    setVideoProgress(0);
+    setActive(index);
+  }
+
+  function handleBlur(event) {
+    if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false);
+  }
+
   return (
-    <section className="home-hero" aria-label="Featured Aries 11 products">
+    <section
+      className="home-hero"
+      aria-label="Featured Aries 11 products"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={handleBlur}
+    >
       <div className="home-hero__media" aria-hidden="true">
         <AnimatePresence initial={false}>
           <motion.div
             key={active}
-            className={`home-hero__slide${canPlayVideo ? ' has-video' : ''}${slide.containMedia ? ' is-contained' : ''}`}
+            className={`home-hero__slide${canPlayVideo ? ' has-video' : ''}`}
             style={{
               '--hero-object-position': slide.objectPosition,
               '--hero-object-position-mobile': slide.mobileObjectPosition,
@@ -181,6 +175,10 @@ export default function HeroCarousel() {
                 controls={false}
                 poster={slide.image}
                 onPlaying={() => setVideoState({ slide: active, complete: false, failed: false })}
+                onTimeUpdate={(event) => {
+                  const { currentTime, duration } = event.currentTarget;
+                  if (duration > 0) setVideoProgress(Math.min(1, currentTime / duration));
+                }}
                 onEnded={() => setVideoState({ slide: active, complete: true, failed: false })}
                 onError={() => setVideoState({ slide: active, complete: true, failed: true })}
                 className="home-hero__asset home-hero__video"
@@ -218,24 +216,44 @@ export default function HeroCarousel() {
             <p className="home-hero__copy">{slide.copy}</p>
             <div className="home-hero__actions">
               <Link to={slide.href} className="btn home-hero__cta">{slide.cta}</Link>
-              <div className="home-hero__meta">24-hour preorder · Abeokuta</div>
+              <div className="home-hero__meta">Baked to order · 24-hour preorder · Abeokuta</div>
             </div>
           </motion.div>
         </AnimatePresence>
-        <div className="home-hero__dots" role="group" aria-label="Choose a featured product">
-          {HERO_SLIDES.map((item, index) => (
-            <button
-              key={item.eyebrow}
-              type="button"
-              aria-label={`Show ${item.eyebrow}`}
-              aria-current={index === active ? 'true' : undefined}
-              onClick={() => {
-                if (index === active) return;
-                setVideoState(INITIAL_VIDEO_STATE);
-                setActive(index);
-              }}
-            />
-          ))}
+        <div className="home-hero__tabs" role="group" aria-label="Choose a featured product">
+          {HERO_SLIDES.map((item, index) => {
+            const isActive = index === active;
+            const isVideoSlide = isActive && canPlayVideo && !videoFailed;
+            return (
+              <button
+                key={item.label}
+                type="button"
+                className={isActive ? 'is-active' : ''}
+                aria-current={isActive ? 'true' : undefined}
+                onClick={() => selectSlide(index)}
+              >
+                <span className="home-hero__tab-label">{item.label}</span>
+                <span className="home-hero__tab-track" aria-hidden="true">
+                  {isActive && (
+                    isVideoSlide ? (
+                      <span
+                        className="home-hero__tab-fill"
+                        style={{ transform: `scaleX(${videoProgress})` }}
+                      />
+                    ) : videoComplete && !videoFailed ? (
+                      <span className="home-hero__tab-fill" style={{ transform: 'scaleX(1)' }} />
+                    ) : (
+                      <span
+                        key={active}
+                        className={`home-hero__tab-fill is-timed${carouselRunning && !reduceMotion ? '' : ' is-paused'}`}
+                        style={{ '--hero-slide-ms': `${SLIDE_MS}ms` }}
+                      />
+                    )
+                  )}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </section>

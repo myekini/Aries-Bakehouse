@@ -8,6 +8,7 @@ import ScrollRevealGroup from '../components/ScrollRevealGroup.jsx';
 import OrderingWorks from '../components/OrderingWorks.jsx';
 import CounterRail from '../components/CounterRail.jsx';
 import SignatureLoafSpotlight from '../components/SignatureLoafSpotlight.jsx';
+import CounterScroller from '../components/CounterScroller.jsx';
 import { Button } from '../components/ui/button.jsx';
 
 // `categories`/`featured`, when passed, are server-fetched by
@@ -33,6 +34,8 @@ export default function Home({ categories: initialCategories, featured: initialF
       )}
 
       <SignatureLoafSpotlight />
+
+      <CounterScroller />
 
       <section className="container home-section" aria-labelledby="featured-title">
         <div className="home-section__header">

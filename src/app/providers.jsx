@@ -6,6 +6,7 @@ import { ThemeProvider } from '../context/ThemeContext.jsx';
 import Layout from '../components/Layout.jsx';
 import SmoothScroll from '../components/SmoothScroll.jsx';
 import { Toaster } from '../components/ui/toast.jsx';
+import PWAProvider from '../components/PWAProvider.jsx';
 
 export default function Providers({ children }) {
   return (
@@ -14,6 +15,7 @@ export default function Providers({ children }) {
         <CartProvider>
           <SmoothScroll />
           <Layout>{children}</Layout>
+          <PWAProvider />
           <Toaster />
         </CartProvider>
       </AuthProvider>

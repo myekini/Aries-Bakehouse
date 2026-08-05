@@ -17,6 +17,8 @@ const CSP = [
   "font-src 'self' data:",
   "connect-src 'self' https://*.supabase.co https://api.paystack.co",
   "frame-src https://checkout.paystack.com https://*.paystack.co",
+  "manifest-src 'self'",
+  "worker-src 'self'",
   "object-src 'none'",
   "base-uri 'self'",
   "frame-ancestors 'self'",

@@ -18,3 +18,7 @@ node_modules/
 brand/
 .vercel
 .env*
+
+# Local Supabase CLI state from `supabase link` (project ref, versions) —
+# machine-local, not project source.
+supabase/.temp/

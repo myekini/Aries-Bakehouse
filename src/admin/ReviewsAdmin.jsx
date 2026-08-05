@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { toast } from '../components/ui/toast.jsx';
 import { ConfirmAlertDialog } from '../components/ui/alert-dialog.jsx';
+import { AdminEmpty, AdminLoading, AdminPage, AdminPageHeader, AdminPanel, AdminRecord, AdminRecordList, AdminStatusBadge, AdminToolbar } from './AdminPrimitives.jsx';
 
 export default function ReviewsAdmin() {
   const [reviews, setReviews] = useState(null);
@@ -24,59 +25,54 @@ export default function ReviewsAdmin() {
     load();
   }
 
-  if (reviews === null) return <div>Loading…</div>;
-  const pending = reviews.filter((r) => r.status === 'pending');
-  const visibleReviews = statusFilter === 'all' ? reviews : reviews.filter((r) => r.status === statusFilter);
+  const pending = reviews?.filter((r) => r.status === 'pending') || [];
+  const visibleReviews = reviews ? (statusFilter === 'all' ? reviews : reviews.filter((r) => r.status === statusFilter)) : [];
 
   return (
-    <div>
-      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>Reviews</h1>
-      <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 20 }}>Moderate reviews before publishing to the storefront.</p>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
+    <AdminPage>
+      <AdminPageHeader eyebrow="Community" title="Reviews" description="Moderate verified customer feedback before it appears on the storefront." />
+      <AdminToolbar className="admin-segmented-control" aria-label="Filter reviews">
         {['pending', 'published', 'rejected', 'all'].map((status) => (
           <button
             key={status}
             type="button"
             onClick={() => setStatusFilter(status)}
-            className="btn btn-sm"
-            style={{
-              background: statusFilter === status ? 'var(--color-choc)' : 'var(--color-white)',
-              color: statusFilter === status ? 'var(--color-white)' : 'var(--color-choc)',
-            }}
+            className={`btn btn-sm ${statusFilter === status ? 'btn-primary' : 'btn-secondary'}`}
           >
             {status === 'all' ? 'All' : status[0].toUpperCase() + status.slice(1)}
           </button>
         ))}
-      </div>
+      </AdminToolbar>
 
-      <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-olive)', marginBottom: 12 }}>Pending Moderation ({pending.length})</div>
-      <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 24 }}>
+      {reviews === null ? <AdminLoading label="Loading reviews…" /> : <>
+      <AdminPanel title={`Pending moderation (${pending.length})`} description="Publish genuine feedback or reject content that should not appear publicly.">
+        {pending.length ? <AdminRecordList>
         {pending.map((r) => (
-          <div key={r.id} style={{ padding: '14px 20px', borderBottom: '1px solid rgba(50,26,23,0.08)' }}>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>{r.product?.name} — {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</div>
-            <div style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: '6px 0' }}>{r.comment}</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => moderate(r, 'published')} className="btn btn-primary btn-sm">Publish</button>
-              <button onClick={() => moderate(r, 'rejected')} className="btn btn-secondary btn-sm">Reject</button>
+          <AdminRecord key={r.id}>
+            <div className="admin-review__heading"><strong>{r.product?.name || 'Product'}</strong><span aria-label={`${r.rating} out of 5 stars`}>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span></div>
+            <p className="admin-review__comment">{r.comment || 'No written comment.'}</p>
+            <div className="admin-record__actions">
+              <button type="button" onClick={() => moderate(r, 'published')} className="btn btn-primary btn-sm">Publish</button>
+              <button type="button" onClick={() => moderate(r, 'rejected')} className="btn btn-secondary btn-sm">Reject</button>
             </div>
-          </div>
+          </AdminRecord>
         ))}
-        {pending.length === 0 && <div style={{ padding: 20, color: 'var(--color-text-muted)' }}>Nothing waiting on moderation.</div>}
-      </div>
+        </AdminRecordList> : <AdminEmpty>Nothing is waiting for moderation.</AdminEmpty>}
+      </AdminPanel>
 
-      <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-olive)', marginBottom: 12 }}>Review Archive</div>
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <AdminPanel title="Review archive" description={`${visibleReviews.length} reviews in this view`}>
+        {visibleReviews.length ? <AdminRecordList>
         {visibleReviews.map((r) => (
-          <div key={r.id} style={{ padding: '14px 20px', borderBottom: '1px solid rgba(50,26,23,0.08)', display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
+          <AdminRecord key={r.id}>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 14 }}>{r.product?.name || 'Product'} — {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</div>
-              <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 4 }}>{r.comment || 'No comment'}</div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: r.status === 'published' ? 'var(--color-olive)' : r.status === 'rejected' ? 'var(--color-error)' : 'var(--color-text-faint)' }}>{r.status}</span>
+              <div className="admin-review__heading"><strong>{r.product?.name || 'Product'}</strong><span aria-label={`${r.rating} out of 5 stars`}>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span></div>
+              <p className="admin-review__comment">{r.comment || 'No written comment.'}</p>
+              <AdminStatusBadge status={r.status}>{r.status}</AdminStatusBadge>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button onClick={() => moderate(r, 'published')} className="btn btn-secondary btn-sm">Publish</button>
-              <button onClick={() => moderate(r, 'pending')} className="btn btn-secondary btn-sm">Hold</button>
-              <button onClick={() => moderate(r, 'rejected')} className="btn btn-secondary btn-sm">Reject</button>
+            <div className="admin-record__actions">
+              <button type="button" onClick={() => moderate(r, 'published')} className="btn btn-secondary btn-sm">Publish</button>
+              <button type="button" onClick={() => moderate(r, 'pending')} className="btn btn-secondary btn-sm">Hold</button>
+              <button type="button" onClick={() => moderate(r, 'rejected')} className="btn btn-secondary btn-sm">Reject</button>
               <ConfirmAlertDialog
                 trigger={<button type="button" className="btn btn-secondary btn-sm">Delete</button>}
                 title="Delete this review?"
@@ -85,10 +81,11 @@ export default function ReviewsAdmin() {
                 onConfirm={() => deleteReview(r)}
               />
             </div>
-          </div>
+          </AdminRecord>
         ))}
-        {visibleReviews.length === 0 && <div style={{ padding: 20, color: 'var(--color-text-muted)' }}>No reviews in this view.</div>}
-      </div>
-    </div>
+        </AdminRecordList> : <AdminEmpty>No reviews in this view.</AdminEmpty>}
+      </AdminPanel>
+      </>}
+    </AdminPage>
   );
 }

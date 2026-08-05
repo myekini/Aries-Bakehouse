@@ -44,6 +44,7 @@ export default function SiteHeader() {
   useEffect(() => {
     if (!menuOpen) return undefined;
     const previousOverflow = document.body.style.overflow;
+    const menuButton = mobileMenuButtonRef.current;
     document.body.style.overflow = 'hidden';
     mobileMenuCloseRef.current?.focus();
 
@@ -66,9 +67,15 @@ export default function SiteHeader() {
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', trapFocus);
-      mobileMenuButtonRef.current?.focus();
+      menuButton?.focus();
     };
   }, [menuOpen]);
+
+  function closeNavigation() {
+    setMenuOpen(false);
+    setMenuDropdownOpen(false);
+    setAccountDropdownOpen(false);
+  }
 
   return (
     <>
@@ -105,12 +112,12 @@ export default function SiteHeader() {
               {menuDropdownOpen && (
                 <div
                   id="menu-categories"
-                  role="menu"
+                  aria-label="Menu categories"
                   className="desktop-nav__dropdown"
                 >
                   {(categories || []).map((c) => (
                     <Link
-                      key={c.id} to={`/menu/${c.id}`} role="menuitem"
+                      key={c.id} to={`/menu/${c.id}`} onClick={closeNavigation}
                       className="desktop-nav__dropdown-link"
                     >
                       {c.name}
@@ -154,19 +161,19 @@ export default function SiteHeader() {
               )}
               {isRealAccount && accountDropdownOpen && (
                 <div
-                  role="menu"
+                  aria-label="Account links"
                   className="site-header__account-menu"
                 >
                   <div className="site-header__account-summary">
                     <div>Signed in</div>
                     <strong>{customer?.email || customer?.phone || 'Your account'}</strong>
                   </div>
-                  <Link to="/account" role="menuitem" className="site-header__account-item">Account</Link>
-                  <Link to="/account/orders" role="menuitem" className="site-header__account-item">Order history</Link>
+                  <Link to="/account" onClick={closeNavigation} className="site-header__account-item">Account</Link>
+                  <Link to="/account/orders" onClick={closeNavigation} className="site-header__account-item">Order history</Link>
                   {customer?.role === 'admin' && (
-                    <Link to="/admin" role="menuitem" className="site-header__account-item site-header__account-item--admin">Admin dashboard</Link>
+                    <Link to="/admin" onClick={closeNavigation} className="site-header__account-item site-header__account-item--admin">Admin dashboard</Link>
                   )}
-                  <button type="button" role="menuitem" onClick={() => signOut()} className="site-header__account-item">Sign out</button>
+                  <button type="button" onClick={() => signOut()} className="site-header__account-item">Sign out</button>
                 </div>
               )}
             </div>
@@ -210,12 +217,12 @@ export default function SiteHeader() {
             <button ref={mobileMenuCloseRef} type="button" onClick={() => setMenuOpen(false)} aria-label="Close menu" className="mobile-menu__close">&times;</button>
           </div>
           <nav className="mobile-menu__nav" aria-label="Mobile navigation">
-            <Link to="/" onClick={() => setMenuOpen(false)}>Home</Link>
-            <Link to="/menu" onClick={() => setMenuOpen(false)}>Menu</Link>
-            <Link to="/search" onClick={() => setMenuOpen(false)}>Search</Link>
-            <Link to="/about" onClick={() => setMenuOpen(false)}>About</Link>
-            <Link to="/contact" onClick={() => setMenuOpen(false)}>Contact</Link>
-            <Link to="/account" onClick={() => setMenuOpen(false)}>Account</Link>
+            <NavLink to="/" end onClick={closeNavigation}>Home</NavLink>
+            <NavLink to="/menu" onClick={closeNavigation}>Menu</NavLink>
+            <NavLink to="/search" onClick={closeNavigation}>Search</NavLink>
+            <NavLink to="/about" onClick={closeNavigation}>About</NavLink>
+            <NavLink to="/contact" onClick={closeNavigation}>Contact</NavLink>
+            <NavLink to="/account" onClick={closeNavigation}>Account</NavLink>
             {customer?.role === 'admin' && <Link to="/admin" onClick={() => setMenuOpen(false)}>Admin dashboard</Link>}
           </nav>
           <p className="mobile-menu__note">Made to order in Abeokuta. Please allow at least 24 hours.</p>

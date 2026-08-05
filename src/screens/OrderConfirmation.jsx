@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, CheckCircle2, Clock3, MessageCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Clock3, MessageCircle, ReceiptText, UtensilsCrossed } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { getOrder } from '../lib/orders.js';
 import { fmtLineTotal, fmtNaira } from '../lib/format.js';
@@ -20,6 +20,7 @@ export default function OrderConfirmation() {
 
   const pending = order.status === 'pending';
   const StatusIcon = pending ? Clock3 : CheckCircle2;
+  const supportUrl = `https://wa.me/2348121145785?text=${encodeURIComponent(`Hello Aries 11 Bakehouse, I need help with order #${order.orderNumber}.`)}`;
 
   return (
     <main className="container order-confirmation">
@@ -32,7 +33,14 @@ export default function OrderConfirmation() {
         <dl className="order-confirmation__details"><div><dt>Fulfilment</dt><dd>{order.fulfilment === 'pickup' ? 'Pickup' : 'Delivery'}</dd></div>{order.fulfilment === 'delivery' && <div><dt>Address</dt><dd>{order.address || 'To be confirmed'}</dd></div>}<div><dt>Preferred date</dt><dd>{order.date || 'To be confirmed'}</dd></div><div><dt>Preferred time</dt><dd>{order.time || 'To be confirmed'}</dd></div></dl>
       </section>
 
-      <div className="order-confirmation__actions"><Link to={`/account/orders/${order.id}`} className="btn btn-primary">Track order<ArrowRight size={15} aria-hidden="true" /></Link><a href="https://wa.me/2348121145785" target="_blank" rel="noreferrer" className="btn btn-secondary"><MessageCircle size={15} aria-hidden="true" />Contact support</a><Link to="/menu">Continue shopping</Link></div>
+      <section className="order-confirmation__next" aria-labelledby="what-next-title">
+        <h2 id="what-next-title">What happens next</h2>
+        <div><span><ReceiptText size={17} aria-hidden="true" /></span><p><strong>{pending ? 'Confirmation is being checked' : 'Your order is recorded'}</strong><small>{pending ? 'Keep this page—there is no need to submit the checkout again.' : 'You can return to your account at any time to see the latest status.'}</small></p></div>
+        <div><span><UtensilsCrossed size={17} aria-hidden="true" /></span><p><strong>The kitchen prepares your order</strong><small>Preparation follows your preferred date and time. The status changes when work begins.</small></p></div>
+        <div><span><MessageCircle size={17} aria-hidden="true" /></span><p><strong>We will contact you if anything needs confirming</strong><small>For faster support, always include order #{order.orderNumber}.</small></p></div>
+      </section>
+
+      <div className="order-confirmation__actions"><Link to={`/account/orders/${order.id}`} className="btn btn-primary">Track order<ArrowRight size={15} aria-hidden="true" /></Link><a href={supportUrl} target="_blank" rel="noreferrer" className="btn btn-secondary"><MessageCircle size={15} aria-hidden="true" />Get help with this order</a><Link to="/menu">Continue shopping</Link></div>
     </main>
   );
 }

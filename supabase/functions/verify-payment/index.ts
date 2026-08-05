@@ -16,11 +16,28 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 );
 
+// This function is called directly from the browser (supabase.functions.invoke
+// in Checkout.jsx), so it needs CORS headers on every response, including the
+// preflight OPTIONS request the browser sends before the real POST. Without
+// this, the browser silently blocks the request as a failed fetch — the
+// client's catch block then always shows "confirmation pending" even when
+// Paystack itself reports the charge as successful.
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+}
+
 Deno.serve(async (req) => {
-  if (req.method !== 'POST') return new Response('method not allowed', { status: 405 });
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders });
+  if (req.method !== 'POST') return new Response('method not allowed', { status: 405, headers: corsHeaders });
 
   const { reference } = await req.json();
-  if (!reference) return new Response(JSON.stringify({ error: 'reference required' }), { status: 400 });
+  if (!reference) return json({ error: 'reference required' }, 400);
 
   const paystackRes = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
     headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` },
@@ -28,16 +45,16 @@ Deno.serve(async (req) => {
   const paystackJson = await paystackRes.json();
 
   if (!paystackJson.status || paystackJson.data?.status !== 'success') {
-    return new Response(JSON.stringify({ confirmed: false }), { status: 200 });
+    return json({ confirmed: false });
   }
 
   const { data: payment } = await supabase
     .from('payment').select('id, order_id, amount, status').eq('reference', reference).maybeSingle();
 
-  if (!payment) return new Response(JSON.stringify({ confirmed: false, error: 'no matching payment row' }), { status: 200 });
+  if (!payment) return json({ confirmed: false, error: 'no matching payment row' });
 
   if (Math.round(payment.amount * 100) !== paystackJson.data.amount) {
-    return new Response(JSON.stringify({ confirmed: false, error: 'amount mismatch' }), { status: 200 });
+    return json({ confirmed: false, error: 'amount mismatch' });
   }
 
   if (payment.status !== 'success') {
@@ -51,5 +68,5 @@ Deno.serve(async (req) => {
       .eq('status', 'pending');
   }
 
-  return new Response(JSON.stringify({ confirmed: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  return json({ confirmed: true });
 });

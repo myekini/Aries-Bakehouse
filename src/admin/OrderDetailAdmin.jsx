@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabaseClient.js';
 import { fmtNaira, fmtLineTotal } from '../lib/format.js';
 import { trackEvent } from '../lib/analytics.js';
 import { toast } from '../components/ui/toast.jsx';
+import { ConfirmAlertDialog } from '../components/ui/alert-dialog.jsx';
+import { AdminEmpty, AdminLoading, AdminPage, AdminPageHeader, AdminPanel, AdminStatusBadge } from './AdminPrimitives.jsx';
 
 const STATUSES = ['pending', 'confirmed', 'preparing', 'ready_or_out', 'completed', 'cancelled'];
 const STATUS_LABEL = {
@@ -16,6 +18,7 @@ export default function OrderDetailAdmin() {
   const [order, setOrder] = useState(undefined);
   const [saving, setSaving] = useState(false);
   const [verifying, setVerifying] = useState(null);
+  const [pendingStatus, setPendingStatus] = useState(null);
 
   function load() {
     supabase.from('order').select('*, order_item(*), payment(*)').eq('id', orderId).maybeSingle()
@@ -27,8 +30,12 @@ export default function OrderDetailAdmin() {
     setSaving(true);
     const { error } = await supabase.from('order').update({ status, updated_at: new Date().toISOString() }).eq('id', orderId);
     if (error) toast.error('Order status was not updated', { description: error.message });
-    else if (status === 'completed') trackEvent('order_completed', { orderId });
+    else {
+      toast.success(`Order #${order.order_number} updated`, { description: `Status changed to ${STATUS_LABEL[status]}.` });
+      if (status === 'completed') trackEvent('order_completed', { orderId });
+    }
     load();
+    setPendingStatus(null);
     setSaving(false);
   }
 
@@ -47,77 +54,72 @@ export default function OrderDetailAdmin() {
     }
   }
 
-  if (order === undefined) return <div>Loading…</div>;
-  if (!order) return <div>Order not found.</div>;
+  if (order === undefined) return <AdminLoading label="Loading order…" />;
+  if (!order) return <AdminEmpty>Order not found.</AdminEmpty>;
 
   return (
-    <div>
-      <div style={{ fontSize: 13, marginBottom: 12 }}><Link to="/admin/orders" style={{ color: 'var(--color-text-faint)' }}>&larr; All Orders</Link></div>
-      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 4 }}>Order #{order.order_number}</h1>
-      <div style={{ fontSize: 14, color: 'var(--color-text-muted)', marginBottom: 24 }}>
-        {order.customer_name} · {order.customer_phone} · {order.customer_email || 'no email'}
-      </div>
+    <AdminPage>
+      <Link to="/admin/orders" className="admin-back-link">&larr; All orders</Link>
+      <AdminPageHeader eyebrow="Order details" title={`Order #${order.order_number}`} description={`${order.customer_name} · ${order.customer_phone} · ${order.customer_email || 'no email'}`} actions={<AdminStatusBadge status={order.status}>{STATUS_LABEL[order.status]}</AdminStatusBadge>} />
 
-      <div className="card" style={{ padding: 24, marginBottom: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-olive)', marginBottom: 12 }}>Status</div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <AdminPanel title="Order status" description="Choose the current kitchen or fulfilment state.">
+        <div className="admin-status-actions">
           {STATUSES.map((s) => (
             <button
-              key={s} disabled={saving} aria-busy={saving && order.status !== s} onClick={() => updateStatus(s)}
-              style={{
-                padding: '8px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer',
-                background: order.status === s ? 'var(--color-choc)' : 'var(--color-cream)',
-                color: order.status === s ? 'var(--color-white)' : 'var(--color-choc)',
-              }}
+              type="button" key={s} disabled={saving} aria-pressed={(pendingStatus || order.status) === s} onClick={() => setPendingStatus(s === order.status ? null : s)}
+              className={`btn btn-sm ${(pendingStatus || order.status) === s ? 'btn-primary' : 'btn-secondary'}`}
             >
               {STATUS_LABEL[s]}
             </button>
           ))}
         </div>
-      </div>
+        {pendingStatus && <div className="admin-save-bar" role="status"><div><strong>Unsaved status change</strong><span>{STATUS_LABEL[order.status]} → {STATUS_LABEL[pendingStatus]}</span></div><button type="button" className="btn btn-secondary btn-sm" onClick={() => setPendingStatus(null)}>Discard</button>{['completed', 'cancelled'].includes(pendingStatus) ? <ConfirmAlertDialog trigger={<button type="button" className="btn btn-primary btn-sm">Review and apply</button>} title={`Mark order as ${STATUS_LABEL[pendingStatus]}?`} description={pendingStatus === 'cancelled' ? 'This removes the order from the active kitchen workflow. Confirm only after the customer and team have been informed.' : 'This closes the order as fulfilled. Confirm that pickup or delivery is complete.'} confirmLabel={`Mark ${STATUS_LABEL[pendingStatus].toLowerCase()}`} destructive={pendingStatus === 'cancelled'} onConfirm={() => updateStatus(pendingStatus)} /> : <button type="button" className="btn btn-primary btn-sm" disabled={saving} onClick={() => updateStatus(pendingStatus)}>{saving ? 'Saving…' : 'Apply status'}</button>}</div>}
+      </AdminPanel>
 
-      <div className="card" style={{ padding: 24, marginBottom: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-olive)', marginBottom: 12 }}>Items</div>
+      <AdminPanel title="Items" description={`${order.order_item.length} configured line items`}>
+        <div className="admin-order-items">
         {order.order_item.map((it) => (
-          <div key={it.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, fontSize: 14, marginBottom: 10 }}>
+          <div key={it.id} className="admin-order-item">
             <div>
-              <div>{it.quantity}x {it.product_name_snapshot}</div>
+              <strong>{it.quantity}× {it.product_name_snapshot}</strong>
               {Object.keys(it.variant_selections || {}).length > 0 && (
-                <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>
+                <p>
                   {Object.entries(it.variant_selections).map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`).join(' · ')}
-                </div>
+                </p>
               )}
             </div>
-            <div style={{ fontWeight: 700 }}>{fmtLineTotal(it.unit_price, it.quantity)}</div>
+            <strong>{fmtLineTotal(it.unit_price, it.quantity)}</strong>
           </div>
         ))}
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 16, borderTop: '1px solid rgba(50,26,23,0.1)', paddingTop: 12, marginTop: 8 }}>
-          <div>Total</div><div>{fmtNaira(order.total)}</div>
         </div>
-      </div>
+        <div className="admin-order-total">
+          <span>Total</span><strong>{fmtNaira(order.total)}</strong>
+        </div>
+      </AdminPanel>
 
-      <div className="card" style={{ padding: 24, marginBottom: 20, fontSize: 14, color: 'var(--color-text-muted)', lineHeight: 1.8 }}>
-        <div><strong>Fulfilment:</strong> {order.fulfilment_type === 'pickup' ? 'Pickup' : `Delivery — ${order.address_text || ''}`}</div>
-        <div><strong>Preferred:</strong> {order.preferred_date} ({order.preferred_time})</div>
-        <div><strong>Notes:</strong> {order.special_instructions || '—'}</div>
-        <div><strong>Fallback channel:</strong> {order.fallback_channel || 'none (online payment)'}</div>
-      </div>
+      <AdminPanel title="Fulfilment" description="Customer timing, destination, and preparation notes.">
+        <dl className="admin-detail-list">
+          <div><dt>Method</dt><dd>{order.fulfilment_type === 'pickup' ? 'Pickup' : `Delivery — ${order.address_text || 'address pending'}`}</dd></div>
+          <div><dt>Preferred time</dt><dd>{order.preferred_date} ({order.preferred_time})</dd></div>
+          <div><dt>Notes</dt><dd>{order.special_instructions || 'None supplied'}</dd></div>
+          <div><dt>Fallback channel</dt><dd>{order.fallback_channel || 'Online payment'}</dd></div>
+        </dl>
+      </AdminPanel>
 
       {order.payment?.length > 0 && (
-        <div className="card" style={{ padding: 24, fontSize: 13, color: 'var(--color-text-muted)' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-olive)', marginBottom: 12 }}>Payment</div>
+        <AdminPanel title="Payment" description="Paystack transactions associated with this order.">
           {order.payment.map((p) => (
-            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap', borderTop: '1px solid rgba(50,26,23,0.08)', paddingTop: 10, marginTop: 10 }}>
+            <div key={p.id} className="admin-payment-row">
               <div>
-                Reference {p.reference} — <strong>{p.status}</strong> {p.verified_at ? `(verified ${new Date(p.verified_at).toLocaleString()})` : ''}
+                <strong>{p.reference}</strong><span>{p.status} {p.verified_at ? `· verified ${new Date(p.verified_at).toLocaleString()}` : ''}</span>
               </div>
-              <button className="btn btn-secondary btn-sm" disabled={verifying === p.id} aria-busy={verifying === p.id} onClick={() => verifyPayment(p)}>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={verifying === p.id} aria-busy={verifying === p.id} onClick={() => verifyPayment(p)}>
                 {verifying === p.id ? 'Checking...' : 'Verify Paystack'}
               </button>
             </div>
           ))}
-        </div>
+        </AdminPanel>
       )}
-    </div>
+    </AdminPage>
   );
 }

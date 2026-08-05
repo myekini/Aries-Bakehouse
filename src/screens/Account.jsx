@@ -1,5 +1,5 @@
 import { cloneElement, isValidElement, useEffect, useState } from 'react';
-import { CheckCircle2, CircleAlert, Info } from 'lucide-react';
+import { ArrowRight, CheckCircle2, CircleAlert, Info, MapPin, MessageCircle, PackageCheck, ShoppingBag } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthShell from '../components/account/AuthShell.jsx';
 import PasswordField from '../components/account/PasswordField.jsx';
@@ -14,6 +14,7 @@ import { ConfirmAlertDialog } from '../components/ui/alert-dialog.jsx';
 import { supabase } from '../lib/supabaseClient.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { trackEvent } from '../lib/analytics.js';
+import { getOrders } from '../lib/orders.js';
 
 export default function Account() {
   const navigate = useNavigate();
@@ -256,8 +257,11 @@ function AccountDashboard({ customer, signOut }) {
   const [profileError, setProfileError] = useState('');
   const [addressStatus, setAddressStatus] = useState('idle');
   const [addressError, setAddressError] = useState('');
+  const [recentOrders, setRecentOrders] = useState(null);
 
   useEffect(() => {
+    // Profile fields mirror authenticated customer data when the session refreshes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setProfile({
       name: customer?.name || '',
       email: customer?.email || '',
@@ -269,6 +273,10 @@ function AccountDashboard({ customer, signOut }) {
     loadAddresses();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer?.id]);
+
+  useEffect(() => {
+    getOrders().then((orders) => setRecentOrders(orders)).catch(() => setRecentOrders([]));
+  }, []);
 
   async function loadAddresses() {
     if (!customer?.id) {
@@ -411,6 +419,18 @@ function AccountDashboard({ customer, signOut }) {
           </div>
         </header>
 
+        <section className="account-overview" aria-label="Account overview">
+          <div className="account-overview__intro">
+            <span><ShoppingBag size={20} aria-hidden="true" /></span>
+            <div><strong>{customer?.name ? `Welcome back, ${customer.name.split(' ')[0]}` : 'Welcome back'}</strong><p>Your orders, saved delivery details, and support are all here.</p></div>
+          </div>
+          <div className="account-overview__links">
+            <Link to="/account/orders"><PackageCheck size={18} aria-hidden="true" /><span><strong>{recentOrders === null ? 'Loading orders…' : `${recentOrders.filter((order) => !['completed', 'cancelled'].includes(order.status)).length} in progress`}</strong><small>Track and reorder</small></span><ArrowRight size={16} aria-hidden="true" /></Link>
+            <a href="#saved-addresses"><MapPin size={18} aria-hidden="true" /><span><strong>{addresses === null ? 'Loading addresses…' : `${addresses.length} saved address${addresses.length === 1 ? '' : 'es'}`}</strong><small>Manage delivery details</small></span><ArrowRight size={16} aria-hidden="true" /></a>
+            <Link to="/contact"><MessageCircle size={18} aria-hidden="true" /><span><strong>Need help?</strong><small>Contact the bakehouse</small></span><ArrowRight size={16} aria-hidden="true" /></Link>
+          </div>
+        </section>
+
         <div className="account-grid">
           <Card className="account-panel">
             <div className="account-panel__header">
@@ -469,7 +489,7 @@ function AccountDashboard({ customer, signOut }) {
             </form>
           </Card>
 
-          <Card className="account-panel">
+          <Card className="account-panel" id="saved-addresses">
             <div className="account-panel__header">
               <h2>Saved addresses</h2>
               <p>Add a delivery address or update an existing one.</p>

@@ -169,8 +169,12 @@ export default function Checkout() {
           (async () => {
             try {
               const { data, error } = await supabase.functions.invoke('verify-payment', { body: { reference: response.reference } });
-              if (!error && data?.confirmed) finishAndLeave(orderId);
-              else setPaymentState('unconfirmed');
+              if (!error && data?.confirmed) {
+                toast.success('Payment confirmed', { description: 'Your order has been received.' });
+                finishAndLeave(orderId);
+              } else {
+                setPaymentState('unconfirmed');
+              }
             } catch (error) {
               console.error('verify-payment call failed:', error);
               setPaymentState('unconfirmed');

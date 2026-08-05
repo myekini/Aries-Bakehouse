@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabaseClient.js';
 import { fmtNaira } from '../lib/format.js';
 import { AdminEmpty, AdminLoading, AdminPage, AdminPageHeader, AdminStatusBadge, AdminToolbar } from './AdminPrimitives.jsx';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '../components/ui/input-group.jsx';
+import { ConfirmAlertDialog } from '../components/ui/alert-dialog.jsx';
 
 const AVAILABILITY_LABELS = { in_stock: 'In stock', made_to_order: 'Made to order', unavailable: 'Unavailable' };
 
@@ -17,6 +18,7 @@ export default function ProductsList() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [availabilityFilter, setAvailabilityFilter] = useState('all');
   const [savingId, setSavingId] = useState(null);
+  const [availabilityDrafts, setAvailabilityDrafts] = useState({});
 
   function load() {
     // No "Load more" here (unlike Orders/Customers) — a bakery's catalogue
@@ -36,7 +38,9 @@ export default function ProductsList() {
     setSavingId(product.id);
     const { error } = await supabase.from('product').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', product.id);
     if (error) toast.error('Product was not updated', { description: error.message });
+    else toast.success(`${product.name} updated`);
     await load();
+    setAvailabilityDrafts((current) => { const next = { ...current }; delete next[product.id]; return next; });
     setSavingId(null);
   }
 
@@ -74,9 +78,9 @@ export default function ProductsList() {
                 <td><div className="admin-product-cell"><span className="admin-product-thumb">{image?.url ? <img src={image.url} alt="" loading="lazy" /> : <ImageOff size={17} aria-hidden="true" />}</span><span><Link to={`/admin/products/${product.id}`}><strong>{product.name}</strong></Link><small>{product.base_price === null ? 'Price TBC' : fmtNaira(product.base_price)}</small></span></div></td>
                 <td>{product.product_category?.name || 'Uncategorised'}</td>
                 <td>{product.product_variant?.length || 0} variants<small>{product.product_image?.length || 0} images</small></td>
-                <td><select className="admin-table__select" value={product.availability} disabled={savingId === product.id} onChange={(event) => updateProduct(product, { availability: event.target.value })} aria-label={`Update ${product.name} availability`}>{Object.entries(AVAILABILITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></td>
+                <td><div className="admin-status-editor"><select className="admin-table__select" value={availabilityDrafts[product.id] ?? product.availability} disabled={savingId === product.id} onChange={(event) => setAvailabilityDrafts((current) => ({ ...current, [product.id]: event.target.value }))} aria-label={`Choose ${product.name} availability`}>{Object.entries(AVAILABILITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>{availabilityDrafts[product.id] && availabilityDrafts[product.id] !== product.availability && <div className="admin-status-editor__actions"><button type="button" onClick={() => updateProduct(product, { availability: availabilityDrafts[product.id] })}>Apply</button><button type="button" onClick={() => setAvailabilityDrafts((current) => { const next = { ...current }; delete next[product.id]; return next; })}>Discard</button></div>}</div></td>
                 <td><AdminStatusBadge status={product.is_active ? 'active' : 'inactive'}>{product.is_active ? 'Active' : 'Archived'}</AdminStatusBadge></td>
-                <td className="is-numeric"><button type="button" className="admin-row-action" disabled={savingId === product.id} onClick={() => updateProduct(product, { is_active: !product.is_active })}>{product.is_active ? 'Archive' : 'Restore'}</button></td>
+                <td className="is-numeric">{product.is_active ? <ConfirmAlertDialog trigger={<button type="button" className="admin-row-action" disabled={savingId === product.id}>Archive</button>} title={`Archive ${product.name}?`} description="The product will disappear from the storefront but its data, variants, images, and order history will remain available." confirmLabel="Archive product" onConfirm={() => updateProduct(product, { is_active: false })} /> : <button type="button" className="admin-row-action" disabled={savingId === product.id} onClick={() => updateProduct(product, { is_active: true })}>Restore</button>}</td>
               </tr>;
             })}
           </tbody></table></div> : <AdminEmpty icon={PackageOpen}>No products match these filters.</AdminEmpty>}

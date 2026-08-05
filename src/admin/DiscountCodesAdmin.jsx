@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient.js';
 import { toast } from '../components/ui/toast.jsx';
 import { ConfirmAlertDialog } from '../components/ui/alert-dialog.jsx';
 import { DatePicker } from '../components/ui/date-picker.jsx';
+import { AdminEmpty, AdminField, AdminFormGrid, AdminLoading, AdminPage, AdminPageHeader, AdminPanel, AdminRecord, AdminRecordList, AdminStatusBadge } from './AdminPrimitives.jsx';
 
 export default function DiscountCodesAdmin() {
   const [codes, setCodes] = useState(null);
@@ -43,30 +44,31 @@ export default function DiscountCodesAdmin() {
     load();
   }
 
-  if (codes === null) return <div>Loading…</div>;
-
   return (
-    <div>
-      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 20 }}>Discount Codes</h1>
-
-      <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 20 }}>
+    <AdminPage>
+      <AdminPageHeader eyebrow="Growth" title="Discount codes" description="Create controlled offers and monitor how often each code is used." />
+      <AdminPanel title="Existing offers" description={codes ? `${codes.length} discount codes configured` : 'Loading discount codes'}>
+        {codes === null ? <AdminLoading label="Loading discount codes…" /> : codes.length ? <AdminRecordList>
         {codes.map((c) => (
-          <div key={c.id} style={{ padding: '14px 20px', borderBottom: '1px solid rgba(50,26,23,0.08)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, alignItems: 'center' }}>
-            <input defaultValue={c.code} onBlur={(e) => updateCode(c, { code: e.target.value.trim().toUpperCase() })} aria-label="Discount code" />
-            <select defaultValue={c.type} onChange={(e) => updateCode(c, { type: e.target.value })} aria-label="Discount type">
+          <AdminRecord key={c.id}>
+            <div className="admin-record__summary"><strong>{c.code}</strong><AdminStatusBadge status={c.active ? 'active' : 'inactive'}>{c.active ? 'Active' : 'Inactive'}</AdminStatusBadge></div>
+            <AdminFormGrid>
+            <AdminField label="Code"><input defaultValue={c.code} onBlur={(e) => updateCode(c, { code: e.target.value.trim().toUpperCase() })} /></AdminField>
+            <AdminField label="Type"><select defaultValue={c.type} onChange={(e) => updateCode(c, { type: e.target.value })}>
               <option value="fixed">Fixed (₦)</option>
               <option value="percentage">Percentage (%)</option>
-            </select>
-            <input type="number" defaultValue={c.value} onBlur={(e) => updateCode(c, { value: Number(e.target.value) || 0 })} aria-label="Discount value" />
-            <input type="number" defaultValue={c.usage_limit || ''} placeholder="No limit" onBlur={(e) => updateCode(c, { usage_limit: e.target.value ? Number(e.target.value) : null })} aria-label="Usage limit" />
-            <DatePicker
+            </select></AdminField>
+            <AdminField label="Value"><input type="number" min="0" defaultValue={c.value} onBlur={(e) => updateCode(c, { value: Number(e.target.value) || 0 })} /></AdminField>
+            <AdminField label="Usage limit" hint="Leave blank for no limit"><input type="number" min="1" defaultValue={c.usage_limit || ''} placeholder="No limit" onBlur={(e) => updateCode(c, { usage_limit: e.target.value ? Number(e.target.value) : null })} /></AdminField>
+            <AdminField label="Expiry date"><DatePicker
               value={c.expires_at ? c.expires_at.slice(0, 10) : ''}
               onChange={(value) => updateCode(c, { expires_at: value || null })}
-              aria-label={`${c.code} expiry date`}
               clearable
-            />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => toggleActive(c)} className="btn btn-secondary btn-sm">{c.active ? 'Active' : 'Inactive'}</button>
+            /></AdminField>
+            </AdminFormGrid>
+            <p className="admin-record__meta">{c.type === 'fixed' ? `₦${c.value} off` : `${c.value}% off`} · {c.usage_limit ? `${c.times_used}/${c.usage_limit} used` : `${c.times_used} used`}{c.expires_at ? ` · expires ${new Date(c.expires_at).toLocaleDateString()}` : ''}</p>
+            <div className="admin-record__actions">
+              <button type="button" onClick={() => toggleActive(c)} className="btn btn-secondary btn-sm">Mark {c.active ? 'inactive' : 'active'}</button>
               <ConfirmAlertDialog
                 trigger={<button type="button" className="btn btn-secondary btn-sm">Delete</button>}
                 title={`Delete ${c.code}?`}
@@ -75,33 +77,31 @@ export default function DiscountCodesAdmin() {
                 onConfirm={() => deleteCode(c)}
               />
             </div>
-            <div style={{ gridColumn: '1 / -1', fontSize: 12, color: 'var(--color-text-muted)' }}>
-              {c.type === 'fixed' ? `₦${c.value} off` : `${c.value}% off`} · {c.usage_limit ? `${c.times_used}/${c.usage_limit} used` : `${c.times_used} used`}
-              {c.expires_at ? ` · expires ${new Date(c.expires_at).toLocaleDateString()}` : ''}
-            </div>
-          </div>
+          </AdminRecord>
         ))}
-        {codes.length === 0 && <div style={{ padding: 20, color: 'var(--color-text-muted)' }}>No discount codes yet.</div>}
-      </div>
+        </AdminRecordList> : <AdminEmpty>No discount codes yet.</AdminEmpty>}
+      </AdminPanel>
 
-      <form onSubmit={addCode} className="card" style={{ padding: 20, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <input value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} placeholder="CODE" style={{ width: 140 }} />
-        <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
+      <form onSubmit={addCode}>
+        <AdminPanel title="Create discount code" description="Codes are normalized to uppercase when saved.">
+        <AdminFormGrid>
+        <AdminField label="Code"><input value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} placeholder="WELCOME10" /></AdminField>
+        <AdminField label="Type"><select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
           <option value="fixed">Fixed (₦)</option>
           <option value="percentage">Percentage (%)</option>
-        </select>
-        <input type="number" value={form.value} onChange={(e) => setForm((f) => ({ ...f, value: e.target.value }))} placeholder="Value" style={{ width: 100 }} />
-        <input type="number" value={form.usage_limit} onChange={(e) => setForm((f) => ({ ...f, usage_limit: e.target.value }))} placeholder="Usage limit (optional)" style={{ width: 160 }} />
-        <DatePicker
+        </select></AdminField>
+        <AdminField label="Value"><input type="number" min="0" value={form.value} onChange={(e) => setForm((f) => ({ ...f, value: e.target.value }))} placeholder="10" /></AdminField>
+        <AdminField label="Usage limit" hint="Optional"><input type="number" min="1" value={form.usage_limit} onChange={(e) => setForm((f) => ({ ...f, usage_limit: e.target.value }))} placeholder="No limit" /></AdminField>
+        <AdminField label="Expiry date" hint="Optional"><DatePicker
           value={form.expires_at}
           onChange={(value) => setForm((f) => ({ ...f, expires_at: value }))}
-          aria-label="New discount expiry date"
           placeholder="Expiry date"
           clearable
-          style={{ width: 180 }}
-        />
-        <button type="submit" className="btn btn-primary btn-sm">Add</button>
+        /></AdminField>
+        </AdminFormGrid>
+        <div className="admin-panel__footer"><button type="submit" className="btn btn-primary">Create code</button></div>
+        </AdminPanel>
       </form>
-    </div>
+    </AdminPage>
   );
 }

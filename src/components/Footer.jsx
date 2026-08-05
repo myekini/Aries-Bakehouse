@@ -9,6 +9,8 @@ const FOOTER_LINKS = [
   ['FAQ', '/faq'],
 ];
 
+const SUPPORT_URL = 'https://wa.me/2348121145785';
+
 export default function Footer() {
   return (
     <footer className="site-footer">
@@ -21,6 +23,12 @@ export default function Footer() {
         <nav className="site-footer__nav" aria-label="Footer navigation">
           {FOOTER_LINKS.map(([label, to]) => <Link key={to} to={to}>{label}</Link>)}
         </nav>
+
+        <div className="site-footer__support">
+          <p>Need help with an order?</p>
+          <a href={SUPPORT_URL} target="_blank" rel="noreferrer">Message WhatsApp support</a>
+          <span>Monday–Saturday, 9am–7pm</span>
+        </div>
 
         <div className="site-footer__base">
           <span>&copy; {new Date().getFullYear()} Aries 11 Bakehouse</span>

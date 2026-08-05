@@ -30,6 +30,8 @@ export default function Menu({ categories: initialCategories, products: initialP
   const { data: products, loading: productsLoading } = useProducts(initialProducts);
 
   useEffect(() => {
+    // Keep the selected tab aligned when navigating directly between category routes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCategory(categoryFromRoute || 'all');
   }, [categoryFromRoute]);
 
@@ -113,8 +115,8 @@ export default function Menu({ categories: initialCategories, products: initialP
         </div>
 
         <div className="menu-results-meta" aria-live="polite">
-          <span>{activeCategory}</span>
-          {!productsLoading && <span>{filtered.length} {filtered.length === 1 ? 'item' : 'items'}</span>}
+          <span><strong>{activeCategory}</strong>{!productsLoading && <> · {filtered.length} {filtered.length === 1 ? 'item' : 'items'}</>}</span>
+          <span>Made fresh with at least 24 hours’ notice</span>
         </div>
       </section>
 

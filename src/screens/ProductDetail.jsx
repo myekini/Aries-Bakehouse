@@ -137,13 +137,9 @@ function ProductGallery({ product, activeImage, alt }) {
   }, [activeImage, alt, product.galleryImages, product.image, product.name]);
   const [selected, setSelected] = useState(activeImage || images[0]?.url);
 
-  useEffect(() => {
-    setSelected(activeImage || images[0]?.url);
-  }, [activeImage, images]);
-
   return (
-    <div>
-      <div style={{ position: 'relative', width: '100%', aspectRatio: '4/5', borderRadius: 8, overflow: 'hidden', background: 'var(--color-white)', padding: productImagePadding(product) }}>
+    <div className="product-gallery">
+      <div className="product-gallery__stage" style={{ padding: productImagePadding(product) }}>
         <AnimatePresence initial={false}>
           <motion.img
             key={selected}
@@ -153,24 +149,21 @@ function ProductGallery({ product, activeImage, alt }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: productImageFit(product), borderRadius: productImagePadding(product) ? 14 : 0, padding: 'inherit' }}
+            className="product-gallery__image"
+            style={{ objectFit: productImageFit(product), padding: 'inherit' }}
           />
         </AnimatePresence>
       </div>
       {images.length > 1 && (
-        <div aria-label="Product image gallery" style={{ display: 'flex', gap: 10, marginTop: 12, overflowX: 'auto', paddingBottom: 2 }}>
+        <div aria-label="Product image gallery" className="product-gallery__thumbs">
           {images.map((img) => (
             <button
               key={img.url}
               onClick={() => setSelected(img.url)}
               aria-label={`Show ${img.alt}`}
-              style={{
-                flex: '0 0 64px', width: 64, height: 64, borderRadius: 12, overflow: 'hidden',
-                border: selected === img.url ? '2px solid var(--color-choc)' : '1px solid var(--color-border)',
-                padding: 0, background: 'var(--color-white)', cursor: 'pointer',
-              }}
+              className={selected === img.url ? 'is-active' : ''}
             >
-              <img src={img.url} alt="" style={{ width: '100%', height: '100%', objectFit: productImageFit(product) }} />
+              <img src={img.url} alt="" style={{ objectFit: productImageFit(product) }} />
             </button>
           ))}
         </div>
@@ -185,6 +178,8 @@ function ConfiguredPreview({ product, image, label }) {
 
   useEffect(() => {
     if (!image || image === displayed.image) {
+      // The preview label can change without an image transition.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (label !== displayed.label) setDisplayed((current) => ({ ...current, label }));
       return undefined;
     }
@@ -229,18 +224,19 @@ function ConfiguredPreview({ product, image, label }) {
 
 function DeliveryEstimate({ fulfilment, setFulfilment }) {
   return (
-    <div style={{ marginTop: 24, padding: 16, borderRadius: 14, background: 'rgba(105,112,74,0.1)' }}>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+    <section className="product-fulfilment" aria-labelledby="fulfilment-title">
+      <div className="product-fulfilment__heading"><span id="fulfilment-title">How would you like it?</span><small>Choose now; confirm details at checkout</small></div>
+      <div className="product-fulfilment__options">
         <ToggleMini active={fulfilment === 'pickup'} onClick={() => setFulfilment('pickup')}>Pickup</ToggleMini>
         <ToggleMini active={fulfilment === 'delivery'} onClick={() => setFulfilment('delivery')}>Delivery</ToggleMini>
       </div>
-      <div style={{ fontSize: 13, color: 'var(--color-cocoa)', lineHeight: 1.55 }}>
+      <p>
         {fulfilment === 'pickup'
-          ? 'Ready for pickup from tomorrow after order confirmation.'
-          : 'Delivery available from tomorrow after order confirmation; fee is confirmed at checkout.'}
-        {' '}See <Link to="/delivery" style={{ color: 'inherit', fontWeight: 700 }}>delivery details</Link>.
-      </div>
-    </div>
+          ? 'Pickup is available after the required 24-hour preparation window.'
+          : 'Delivery is available after preparation. The team confirms the delivery fee after reviewing your address.'}
+        {' '}<Link to="/delivery">Delivery details</Link>
+      </p>
+    </section>
   );
 }
 
@@ -249,12 +245,8 @@ function ToggleMini({ active, onClick, children }) {
     <button
       type="button"
       onClick={onClick}
-      style={{
-        flex: 1, padding: '9px 12px', borderRadius: 999, border: 'none', cursor: 'pointer',
-        background: active ? 'var(--color-choc)' : 'var(--color-white)',
-        color: active ? 'var(--color-white)' : 'var(--color-choc)',
-        fontSize: 12, fontWeight: 800,
-      }}
+      className={active ? 'is-active' : ''}
+      aria-pressed={active}
     >
       {children}
     </button>
@@ -277,7 +269,7 @@ function ProductReviews({ slug }) {
             <div aria-label={`${review.rating} out of 5 stars`} style={{ color: 'var(--color-caramel)', fontSize: 15, fontWeight: 800 }}>
               {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
             </div>
-            <div style={{ fontSize: 15, color: 'var(--color-text-muted)', lineHeight: 1.6, marginTop: 10 }}>"{review.comment}"</div>
+            <div style={{ fontSize: 15, color: 'var(--color-text-muted)', lineHeight: 1.6, marginTop: 10 }}>&ldquo;{review.comment}&rdquo;</div>
           </div>
         ))}
       </div>
@@ -292,8 +284,8 @@ function MobileProductAction({ price, disabled = false, onAddToCart, onBuyNow })
         <div className="mobile-sticky-action__label">Order total</div>
         <div className="mobile-sticky-action__price">{price}</div>
       </div>
-      <button className="btn btn-secondary" disabled={disabled} onClick={onBuyNow}>Buy Now</button>
-      <button className="btn btn-primary" disabled={disabled} onClick={onAddToCart}>{disabled ? 'Out' : 'Add'}</button>
+      <button type="button" className="mobile-sticky-action__buy-now" disabled={disabled} onClick={onBuyNow}>Buy now</button>
+      <button type="button" className="btn btn-primary" disabled={disabled} onClick={onAddToCart}>{disabled ? 'Out of stock' : 'Add to cart'}</button>
     </div>
   );
 }
@@ -316,39 +308,33 @@ function SimpleProduct({ product }) {
 
   return (
     <div className="product-page-with-sticky">
-      <div className="container" style={{ padding: '24px 0 0' }}><ProductBreadcrumb product={product} /></div>
-      <div className="container" style={{ display: 'flex', flexWrap: 'wrap', gap: 64, paddingBottom: 64 }}>
-        <div style={{ flex: '1 1 400px' }}>
+      <div className="container product-configurator__breadcrumb"><ProductBreadcrumb product={product} /></div>
+      <div className="container product-configurator product-composer">
+        <div className="product-configurator__media">
           <ProductGallery product={product} activeImage={product.image} alt={product.name} />
         </div>
-        <div style={{ flex: '1 1 360px' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-olive)' }}>{productCategoryLabel(product.category)}</div>
-          <h1 style={{ fontSize: 36, fontWeight: 800, margin: '10px 0 0' }}>{product.name}</h1>
-          <div style={{ fontWeight: 800, fontSize: 22, marginTop: 12 }}>{fmtNaira(product.startingPrice)}</div>
-          <p style={{ fontSize: 15, color: 'var(--color-text-muted)', marginTop: 14, lineHeight: 1.6, maxWidth: 460 }}>{product.desc}</p>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-olive)', marginTop: 10 }}>{product.availability}</div>
+        <div className="product-configurator__controls">
+          <div className="product-configurator__category">{productCategoryLabel(product.category)}</div>
+          <h1>{product.name}</h1>
+          <div className="product-configurator__price">{product.startingPrice === null ? 'Price TBC' : fmtNaira(product.startingPrice)}</div>
+          <p className="product-configurator__description">{product.desc}</p>
+          <div className="product-configurator__availability">{product.availability}</div>
+          {product.startingPrice === null && <PriceTbcNotice />}
 
-          <div style={{ marginTop: 28 }}>
-            <div style={sectionLabel}>Quantity</div>
+          <div className="product-configurator__quantity">
+            <div className="product-composer__section-label">Quantity</div>
             <QtyStepper qty={qty} setQty={setQty} min={1} />
           </div>
 
           <DeliveryEstimate fulfilment={fulfilment} setFulfilment={setFulfilment} />
 
-          <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-            <button className="btn btn-primary btn-lg" style={{ flex: 1 }} disabled={product.outOfStock} onClick={() => addToCart(item())}>
-              {product.outOfStock ? 'Out of Stock' : 'Add to Cart'}
-            </button>
-            <button className="btn btn-secondary btn-lg" style={{ flex: 1 }} disabled={product.outOfStock} onClick={buyNow}>
-              Buy Now
-            </button>
-          </div>
+          <PurchaseActions disabled={product.outOfStock} onAddToCart={() => addToCart(item())} onBuyNow={buyNow} />
 
           <ProductInfoBlock product={product} />
         </div>
       </div>
       <MobileProductAction
-        price={fmtNaira(product.startingPrice * qty)}
+        price={product.startingPrice === null ? 'Price TBC' : fmtNaira(product.startingPrice * qty)}
         disabled={product.outOfStock}
         onAddToCart={() => addToCart(item(), { openDrawer: true })}
         onBuyNow={buyNow}
@@ -361,16 +347,21 @@ function SimpleProduct({ product }) {
 
 function QtyStepper({ qty, setQty, min = 1 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-      <button aria-label="Decrease quantity" onClick={() => setQty(Math.max(min, qty - 1))} style={qtyBtn}>&minus;</button>
-      <div style={{ fontWeight: 800, fontSize: 18, minWidth: 24, textAlign: 'center' }}>{qty}</div>
-      <button aria-label="Increase quantity" onClick={() => setQty(qty + 1)} style={qtyBtn}>+</button>
+    <div className="product-quantity">
+      <button type="button" aria-label="Decrease quantity" disabled={qty <= min} onClick={() => setQty(Math.max(min, qty - 1))}>&minus;</button>
+      <div aria-live="polite">{qty}</div>
+      <button type="button" aria-label="Increase quantity" onClick={() => setQty(qty + 1)}>+</button>
     </div>
   );
 }
 
-const qtyBtn = { width: 40, height: 40, borderRadius: 999, background: 'var(--color-white)', border: '1.5px solid var(--color-choc)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18, cursor: 'pointer' };
-const sectionLabel = { fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-olive)', marginBottom: 12 };
+function PriceTbcNotice() {
+  return <div className="product-price-notice" role="note"><strong>Price confirmation needed</strong><span>Add this item to your order now. The team will confirm its price on WhatsApp before online payment is available.</span></div>;
+}
+
+function PurchaseActions({ disabled, onAddToCart, onBuyNow }) {
+  return <div className="product-configurator__actions"><button type="button" className="btn btn-primary btn-lg" disabled={disabled} onClick={onAddToCart}>{disabled ? 'Out of stock' : 'Add to cart'}</button><button type="button" className="product-buy-now" disabled={disabled} onClick={onBuyNow}>Buy now and continue to checkout</button></div>;
+}
 
 // ---- Configured products ----
 // `makeConfig(rules)` builds a config object exposing: initialState(),
@@ -434,11 +425,12 @@ function ConfiguredProduct({ product, rules, makeConfig }) {
           <div className="product-configurator__price">{priceKnown ? fmtNaira(unitPrice) : 'Price TBC'}</div>
           <p className="product-configurator__description">{product.desc}</p>
           <div className="product-configurator__availability">{product.availability}</div>
+          {!priceKnown && <PriceTbcNotice />}
 
           <config.Fields state={state} setState={setState} />
 
           <div className="product-configurator__quantity">
-            <div style={sectionLabel}>Quantity</div>
+            <div className="product-composer__section-label">Quantity</div>
             <QtyStepper qty={qty} setQty={(q) => setState((s) => ({ ...s, qty: q }))} min={config.minQty ? config.minQty(state) : 1} />
           </div>
 
@@ -446,11 +438,8 @@ function ConfiguredProduct({ product, rules, makeConfig }) {
 
           <AnimatedTotal priceKnown={priceKnown} total={priceKnown ? unitPrice * qty : null} />
 
-          <div className="product-configurator__actions">
-            <button className="btn btn-primary btn-lg" style={{ flex: 1 }} onClick={() => addToCart(buildItem())}>Add to Cart</button>
-            <button className="btn btn-secondary btn-lg" style={{ flex: 1 }} onClick={buyNow}>Buy Now</button>
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--color-text-faint)', marginTop: 10, textAlign: 'center' }}>
+          <PurchaseActions onAddToCart={() => addToCart(buildItem())} onBuyNow={buyNow} />
+          <div className="product-configurator__note">
             {config.note ? config.note(state) : null}
           </div>
 

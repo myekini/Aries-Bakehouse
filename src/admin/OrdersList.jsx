@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CalendarDays, ClipboardList } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/ui/button.jsx';
 import { DatePicker } from '../components/ui/date-picker.jsx';
 import { toast } from '../components/ui/toast.jsx';
@@ -20,19 +20,23 @@ const STATUS_LABEL = {
 const PAGE_SIZE = 50;
 
 export default function OrdersList() {
+  const [params] = useSearchParams();
   const [orders, setOrders] = useState(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [statusFilter, setStatusFilter] = useState('all');
+  const requestedStatus = params.get('status');
+  const [statusFilter, setStatusFilter] = useState([...STATUSES, 'kitchen'].includes(requestedStatus) ? requestedStatus : 'all');
   const [fulfilmentFilter, setFulfilmentFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [savingId, setSavingId] = useState(null);
   const [counts, setCounts] = useState({});
+  const [statusDrafts, setStatusDrafts] = useState({});
 
   function baseQuery() {
     let query = supabase.from('order').select('*, order_item(id)').order('preferred_date', { ascending: true }).order('created_at', { ascending: false });
-    if (statusFilter !== 'all') query = query.eq('status', statusFilter);
+    if (statusFilter === 'kitchen') query = query.in('status', ['confirmed', 'preparing']);
+    else if (statusFilter !== 'all') query = query.eq('status', statusFilter);
     if (fulfilmentFilter !== 'all') query = query.eq('fulfilment_type', fulfilmentFilter);
     if (dateFrom) query = query.gte('preferred_date', dateFrom);
     if (dateTo) query = query.lte('preferred_date', dateTo);
@@ -92,8 +96,10 @@ export default function OrdersList() {
     setSavingId(order.id);
     const { error } = await supabase.from('order').update({ status, updated_at: new Date().toISOString() }).eq('id', order.id);
     if (error) toast.error('Order status was not updated', { description: error.message });
+    else toast.success(`Order #${order.order_number} updated`, { description: `Status changed to ${STATUS_LABEL[status]}.` });
     await load();
     await loadCounts();
+    setStatusDrafts((current) => { const next = { ...current }; delete next[order.id]; return next; });
     setSavingId(null);
   }
 
@@ -112,12 +118,18 @@ export default function OrdersList() {
       />
 
       <AdminToolbar>
-        <label><span>Status</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">All statuses</option>{STATUSES.map((status) => <option key={status} value={status}>{STATUS_LABEL[status]}</option>)}</select></label>
+        <label><span>Status</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">All statuses</option><option value="kitchen">Confirmed + preparing</option>{STATUSES.map((status) => <option key={status} value={status}>{STATUS_LABEL[status]}</option>)}</select></label>
         <label><span>Fulfilment</span><select value={fulfilmentFilter} onChange={(event) => setFulfilmentFilter(event.target.value)}><option value="all">Pickup + delivery</option><option value="pickup">Pickup only</option><option value="delivery">Delivery only</option></select></label>
         <div className="admin-date-field"><span>From</span><DatePicker aria-label="Orders from date" value={dateFrom} max={dateTo || undefined} onChange={changeDateFrom} clearable /></div>
         <div className="admin-date-field"><span>To</span><DatePicker aria-label="Orders to date" value={dateTo} min={dateFrom || undefined} onChange={setDateTo} clearable /></div>
         {(statusFilter !== 'all' || fulfilmentFilter !== 'all' || dateFrom || dateTo) && <button className="admin-clear-button" type="button" onClick={() => { setStatusFilter('all'); setFulfilmentFilter('all'); setDateFrom(''); setDateTo(''); }}>Clear filters</button>}
       </AdminToolbar>
+
+      <div className="admin-task-views" aria-label="Operational order views">
+        <button type="button" className={statusFilter === 'pending' ? 'is-active' : ''} onClick={() => setStatusFilter('pending')}><span>Needs confirmation</span><strong>{counts.pending || 0}</strong><small>Review details and payment</small></button>
+        <button type="button" className={statusFilter === 'kitchen' ? 'is-active' : ''} onClick={() => setStatusFilter('kitchen')}><span>In the kitchen</span><strong>{(counts.confirmed || 0) + (counts.preparing || 0)}</strong><small>Confirmed and preparing</small></button>
+        <button type="button" className={statusFilter === 'ready_or_out' ? 'is-active' : ''} onClick={() => setStatusFilter('ready_or_out')}><span>Ready for handoff</span><strong>{counts.ready_or_out || 0}</strong><small>Pickup or delivery next</small></button>
+      </div>
 
       <div className="admin-filter-stats" aria-label="Order status totals">
         <button type="button" className={statusFilter === 'all' ? 'is-active' : ''} onClick={() => setStatusFilter('all')}><strong>{counts.all || 0}</strong><span>All</span></button>
@@ -133,7 +145,7 @@ export default function OrdersList() {
               <td>{order.customer_name}<small>{order.customer_phone}</small></td>
               <td><strong className="admin-table__primary">{order.fulfilment_type === 'pickup' ? 'Pickup' : 'Delivery'}</strong><small>{order.preferred_date} · {order.preferred_time}</small></td>
               <td>{order.order_item?.length || 0}</td>
-              <td><select className="admin-table__select" value={order.status} disabled={savingId === order.id} onChange={(event) => updateStatus(order, event.target.value)} aria-label={`Update order ${order.order_number} status`}>{STATUSES.map((status) => <option key={status} value={status}>{STATUS_LABEL[status]}</option>)}</select></td>
+              <td><div className="admin-status-editor"><select className="admin-table__select" value={statusDrafts[order.id] ?? order.status} disabled={savingId === order.id} onChange={(event) => setStatusDrafts((current) => ({ ...current, [order.id]: event.target.value }))} aria-label={`Choose order ${order.order_number} status`}>{STATUSES.map((status) => <option key={status} value={status}>{STATUS_LABEL[status]}</option>)}</select>{statusDrafts[order.id] && statusDrafts[order.id] !== order.status && <div className="admin-status-editor__actions"><button type="button" disabled={savingId === order.id} onClick={() => updateStatus(order, statusDrafts[order.id])}>{savingId === order.id ? 'Saving…' : 'Apply'}</button><button type="button" onClick={() => setStatusDrafts((current) => { const next = { ...current }; delete next[order.id]; return next; })}>Discard</button></div>}</div></td>
               <td className="is-numeric"><strong>{fmtNaira(order.total)}</strong><span className="admin-table__mobile-status"><AdminStatusBadge status={order.status}>{STATUS_LABEL[order.status]}</AdminStatusBadge></span></td>
             </tr>)}
           </tbody></table></div> : <AdminEmpty icon={ClipboardList}>No orders match these filters.</AdminEmpty>}

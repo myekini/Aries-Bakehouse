@@ -91,11 +91,12 @@ export default function HeroCarousel() {
   const [active, setActive] = useState(0);
   const [videoState, setVideoState] = useState(INITIAL_VIDEO_STATE);
   const [pageVisible, setPageVisible] = useState(true);
+  const saveData = typeof navigator !== 'undefined' && Boolean(navigator.connection?.saveData);
   const slide = HERO_SLIDES[active];
   const carouselRunning = pageVisible;
   const videoComplete = videoState.slide === active && videoState.complete;
   const videoFailed = videoState.slide === active && videoState.failed;
-  const canPlayVideo = Boolean(slide.video && !reduceMotion && !videoComplete);
+  const canPlayVideo = Boolean(slide.video && !reduceMotion && !saveData && !videoComplete);
 
   const attachVideo = useCallback((video) => {
     videoRef.current = video;
@@ -121,19 +122,6 @@ export default function HeroCarousel() {
     }, completedVideo ? PHOTO_HOLD_MS : SLIDE_MS);
     return () => window.clearTimeout(timer);
   }, [active, canPlayVideo, carouselRunning, reduceMotion, slide.video, videoComplete, videoFailed]);
-
-  useEffect(() => {
-    if (reduceMotion) return undefined;
-    const nextSlide = HERO_SLIDES[(active + 1) % HERO_SLIDES.length];
-    if (!nextSlide.video) return undefined;
-
-    const preloader = document.createElement('video');
-    preloader.preload = 'auto';
-    preloader.muted = true;
-    preloader.src = nextSlide.video;
-    preloader.load();
-    return () => preloader.pause();
-  }, [active, reduceMotion]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -189,7 +177,7 @@ export default function HeroCarousel() {
                 autoPlay
                 muted
                 playsInline
-                preload="auto"
+                preload="metadata"
                 controls={false}
                 poster={slide.image}
                 onPlaying={() => setVideoState({ slide: active, complete: false, failed: false })}

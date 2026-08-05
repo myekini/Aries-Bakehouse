@@ -129,6 +129,7 @@ export default function ProductCard({ product }) {
           </strong>
           <span>{product.availability}</span>
         </div>
+        {product.startingPrice === null && <p className="product-card__price-note">Price confirmed by the team before payment.</p>}
         <Link to={`/product/${product.slug}`} className="product-card__cta">
           {product.configurator ? 'Configure' : 'View details'} <span aria-hidden="true">&rarr;</span>
         </Link>

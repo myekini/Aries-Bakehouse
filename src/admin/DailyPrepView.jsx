@@ -30,6 +30,7 @@ import { Card } from '../components/ui/card.jsx';
 import { ChartContainer, ChartTooltipContent } from '../components/ui/chart.jsx';
 import { supabase } from '../lib/supabaseClient.js';
 import { fmtNaira } from '../lib/format.js';
+import { ConfirmAlertDialog } from '../components/ui/alert-dialog.jsx';
 
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'preparing', 'ready_or_out'];
 const STATUS_LABELS = {
@@ -105,7 +106,6 @@ export default function DailyPrepView() {
         supabase
           .from('payment')
           .select('id, amount, status, created_at')
-          .eq('status', 'success')
           .gte('created_at', since.toISOString())
           .limit(500),
         supabase.from('product').select('id', { count: 'exact', head: true }).eq('is_active', true),
@@ -130,6 +130,8 @@ export default function DailyPrepView() {
 
   useEffect(() => {
     let cancelled = false;
+    // Reset the visible list while a newly selected prep date loads.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPrepOrders(null);
     supabase
       .from('order')
@@ -208,9 +210,15 @@ export default function DailyPrepView() {
     .sort((a, b) => new Date(a.preferred_date) - new Date(b.preferred_date))
     .slice(0, 6), [dashboard.orders]);
 
-  const revenue = dashboard.payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const revenue = dashboard.payments.filter((payment) => payment.status === 'success').reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
   const openOrderCount = dashboard.orders.filter((order) => ACTIVE_STATUSES.includes(order.status)).length;
   const totalPrepItems = prepSummary.reduce((sum, item) => sum + item.quantity, 0);
+  const taskCounts = {
+    pending: dashboard.orders.filter((order) => order.status === 'pending').length,
+    kitchen: dashboard.orders.filter((order) => ['confirmed', 'preparing'].includes(order.status)).length,
+    ready: dashboard.orders.filter((order) => order.status === 'ready_or_out').length,
+    payment: dashboard.payments.filter((payment) => ['failed', 'pending'].includes(payment.status)).length,
+  };
 
   return (
     <div className="admin-dashboard">
@@ -218,7 +226,7 @@ export default function DailyPrepView() {
         <div>
           <p className="admin-page-header__eyebrow">Operations overview</p>
           <h1>Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}</h1>
-          <p>Track sales, open orders, and the next kitchen run from one place.</p>
+          <p>Start with the orders that need a decision, then move into today’s kitchen run.</p>
         </div>
         <Button asChild variant="secondary" className="admin-page-header__action">
           <Link to="/admin/orders">View all orders <ArrowRight size={16} aria-hidden="true" /></Link>
@@ -226,6 +234,16 @@ export default function DailyPrepView() {
       </div>
 
       {error && <Alert variant="destructive"><CircleAlert size={18} aria-hidden="true" /><AlertTitle>Dashboard data is incomplete</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
+
+      <section className="admin-action-board" aria-labelledby="action-board-title">
+        <div className="admin-action-board__header"><div><h2 id="action-board-title">What needs attention</h2><p>Live operational queues, ordered by the next staff action.</p></div><span>{openOrderCount} open orders</span></div>
+        <div className="admin-action-board__grid">
+          <Link to="/admin/orders?status=pending"><span>Confirm next</span><strong>{dashboardLoading ? '—' : taskCounts.pending}</strong><small>Review order details and payment</small><ArrowRight size={17} aria-hidden="true" /></Link>
+          <Link to="/admin/orders?status=kitchen"><span>In the kitchen</span><strong>{dashboardLoading ? '—' : taskCounts.kitchen}</strong><small>Confirmed or being prepared</small><ArrowRight size={17} aria-hidden="true" /></Link>
+          <Link to="/admin/orders?status=ready_or_out"><span>Ready for handoff</span><strong>{dashboardLoading ? '—' : taskCounts.ready}</strong><small>Pickup or delivery is next</small><ArrowRight size={17} aria-hidden="true" /></Link>
+          <Link to="/admin/payments"><span>Payment check</span><strong>{dashboardLoading ? '—' : taskCounts.payment}</strong><small>Pending or failed transactions</small><ArrowRight size={17} aria-hidden="true" /></Link>
+        </div>
+      </section>
 
       <section className="admin-metrics" aria-label="Store metrics" aria-busy={dashboardLoading}>
         <MetricCard label="Revenue" value={dashboardLoading ? '—' : fmtNaira(revenue)} note="Successful payments, last 30 days" icon={Banknote} />
@@ -376,7 +394,7 @@ export default function DailyPrepView() {
                       <StatusBadge status={order.status} />
                       <button type="button" disabled={order.status === 'preparing'} onClick={() => updateStatus(order, 'preparing')}>Preparing</button>
                       <button type="button" onClick={() => updateStatus(order, 'ready_or_out')}>Ready / out</button>
-                      <button type="button" onClick={() => updateStatus(order, 'completed')}>Complete</button>
+                      <ConfirmAlertDialog trigger={<button type="button">Complete</button>} title={`Complete order #${order.order_number}?`} description="Confirm that pickup or delivery has finished. The order will leave the active kitchen queue." confirmLabel="Complete order" destructive={false} onConfirm={() => updateStatus(order, 'completed')} />
                     </div>
                   </article>
                 ))}

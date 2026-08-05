@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { toast } from '../components/ui/toast.jsx';
 import { ConfirmAlertDialog } from '../components/ui/alert-dialog.jsx';
+import { AdminEmpty, AdminField, AdminFormGrid, AdminLoading, AdminPage, AdminPageHeader, AdminPanel, AdminRecord, AdminRecordList } from './AdminPrimitives.jsx';
 
 export default function CategoriesAdmin() {
   const [categories, setCategories] = useState(null);
@@ -32,18 +33,20 @@ export default function CategoriesAdmin() {
     load();
   }
 
-  if (categories === null) return <div>Loading…</div>;
-
   return (
-    <div>
-      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 20 }}>Categories</h1>
-      <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 20 }}>
+    <AdminPage>
+      <AdminPageHeader eyebrow="Catalogue" title="Categories" description="Organise the menu and control the order in which product groups appear to customers." />
+      <AdminPanel title="Menu categories" description={`${categories?.length || 0} categories in the storefront`}>
+        {categories === null ? <AdminLoading label="Loading categories…" /> : categories.length ? <AdminRecordList>
         {categories.map((c) => (
-          <div key={c.id} style={{ padding: '14px 20px', borderBottom: '1px solid rgba(50,26,23,0.08)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, alignItems: 'center' }}>
-            <input defaultValue={c.name} onBlur={(e) => e.target.value !== c.name && updateField(c, 'name', e.target.value)} />
-            <input defaultValue={c.description || ''} placeholder="Description" onBlur={(e) => e.target.value !== (c.description || '') && updateField(c, 'description', e.target.value)} />
-            <input defaultValue={c.image_url || ''} placeholder="Image URL" onBlur={(e) => e.target.value !== (c.image_url || '') && updateField(c, 'image_url', e.target.value)} />
-            <input type="number" defaultValue={c.sort_order} aria-label={`${c.name} sort order`} onBlur={(e) => updateField(c, 'sort_order', Number(e.target.value) || 0)} />
+          <AdminRecord key={c.id}>
+            <AdminFormGrid className="admin-form-grid--category">
+              <AdminField label="Name"><input defaultValue={c.name} onBlur={(e) => e.target.value !== c.name && updateField(c, 'name', e.target.value)} /></AdminField>
+              <AdminField label="Description"><input defaultValue={c.description || ''} placeholder="Short menu description" onBlur={(e) => e.target.value !== (c.description || '') && updateField(c, 'description', e.target.value)} /></AdminField>
+              <AdminField label="Image URL"><input type="url" defaultValue={c.image_url || ''} placeholder="https://…" onBlur={(e) => e.target.value !== (c.image_url || '') && updateField(c, 'image_url', e.target.value)} /></AdminField>
+              <AdminField label="Sort order"><input type="number" defaultValue={c.sort_order} onBlur={(e) => updateField(c, 'sort_order', Number(e.target.value) || 0)} /></AdminField>
+            </AdminFormGrid>
+            <div className="admin-record__actions">
             <ConfirmAlertDialog
               trigger={<button type="button" className="btn btn-secondary btn-sm">Delete</button>}
               title={`Delete ${c.name}?`}
@@ -51,13 +54,19 @@ export default function CategoriesAdmin() {
               confirmLabel="Delete category"
               onConfirm={() => deleteCategory(c)}
             />
-          </div>
+            </div>
+          </AdminRecord>
         ))}
-      </div>
-      <form onSubmit={addCategory} className="card" style={{ padding: 20, display: 'flex', gap: 10 }}>
-        <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New category name" style={{ flex: 1 }} />
-        <button type="submit" className="btn btn-primary btn-sm">Add</button>
+        </AdminRecordList> : <AdminEmpty>No categories yet. Add the first menu category below.</AdminEmpty>}
+      </AdminPanel>
+      <form onSubmit={addCategory}>
+        <AdminPanel title="Add category" description="A URL-safe slug is created automatically from the name.">
+          <div className="admin-create-row">
+            <AdminField label="Category name"><input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="For example, Celebration cakes" /></AdminField>
+            <button type="submit" className="btn btn-primary">Add category</button>
+          </div>
+        </AdminPanel>
       </form>
-    </div>
+    </AdminPage>
   );
 }

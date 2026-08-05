@@ -6,6 +6,7 @@ import { AdminEmpty, AdminLoading, AdminPage, AdminPageHeader, AdminStatusBadge,
 import { toast } from '../components/ui/toast.jsx';
 import { Button } from '../components/ui/button.jsx';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '../components/ui/input-group.jsx';
+import { ConfirmAlertDialog } from '../components/ui/alert-dialog.jsx';
 
 // "Load more" page size — a hard .limit(300)/.limit(1000) with no way to
 // see anything past it would otherwise silently hide customers/orders as
@@ -20,6 +21,7 @@ export default function CustomersAdmin() {
   const [search, setSearch] = useState('');
   const [includeGuests, setIncludeGuests] = useState(false);
   const [savingId, setSavingId] = useState(null);
+  const [roleDrafts, setRoleDrafts] = useState({});
 
   function baseQuery() {
     let query = supabase.from('customer').select('*').order('created_at', { ascending: false });
@@ -74,7 +76,9 @@ export default function CustomersAdmin() {
     setSavingId(customer.id);
     const { error } = await supabase.from('customer').update(patch).eq('id', customer.id);
     if (error) toast.error('Customer was not updated', { description: error.message });
+    else toast.success('Customer updated');
     await load();
+    setRoleDrafts((current) => { const next = { ...current }; delete next[customer.id]; return next; });
     setSavingId(null);
   }
 
@@ -96,12 +100,12 @@ export default function CustomersAdmin() {
             {filtered.map((customer) => {
               const customerOrders = ordersByCustomer[customer.id] || [];
               return <tr key={customer.id}>
-                <td><input className="admin-table__input" defaultValue={customer.name || ''} placeholder="Add name" onBlur={(event) => event.target.value !== (customer.name || '') && updateCustomer(customer, { name: event.target.value || null })} /><small>Joined {new Date(customer.created_at).toLocaleDateString('en-NG')}</small></td>
-                <td><input className="admin-table__input" type="email" defaultValue={customer.email || ''} placeholder="Add email" onBlur={(event) => event.target.value !== (customer.email || '') && updateCustomer(customer, { email: event.target.value || null })} /><input className="admin-table__input" type="tel" defaultValue={customer.phone || ''} placeholder="Add phone" onBlur={(event) => event.target.value !== (customer.phone || '') && updateCustomer(customer, { phone: event.target.value || null })} /></td>
+                <td><input className="admin-table__input" aria-label={`${customer.name || 'Customer'} name`} defaultValue={customer.name || ''} placeholder="Add name" onBlur={(event) => event.target.value !== (customer.name || '') && updateCustomer(customer, { name: event.target.value || null })} /><small>Joined {new Date(customer.created_at).toLocaleDateString('en-NG')}</small></td>
+                <td><input className="admin-table__input" aria-label={`${customer.name || 'Customer'} email`} type="email" defaultValue={customer.email || ''} placeholder="Add email" onBlur={(event) => event.target.value !== (customer.email || '') && updateCustomer(customer, { email: event.target.value || null })} /><input className="admin-table__input" aria-label={`${customer.name || 'Customer'} phone`} type="tel" defaultValue={customer.phone || ''} placeholder="Add phone" onBlur={(event) => event.target.value !== (customer.phone || '') && updateCustomer(customer, { phone: event.target.value || null })} /></td>
                 <td>{customerOrders.length}</td>
                 <td><strong>{fmtNaira(customerOrders.reduce((sum, order) => sum + (order.total || 0), 0))}</strong></td>
                 <td><AdminStatusBadge status={customer.is_guest ? 'inactive' : 'active'}>{customer.is_guest ? 'Guest' : 'Account'}</AdminStatusBadge></td>
-                <td><select className="admin-table__select" value={customer.role} disabled={savingId === customer.id} onChange={(event) => updateCustomer(customer, { role: event.target.value })} aria-label={`${customer.name || 'Customer'} role`}><option value="customer">Customer</option><option value="admin">Admin</option></select></td>
+                <td><div className="admin-role-editor"><select className="admin-table__select" value={roleDrafts[customer.id] ?? customer.role} disabled={savingId === customer.id} onChange={(event) => setRoleDrafts((current) => ({ ...current, [customer.id]: event.target.value }))} aria-label={`${customer.name || 'Customer'} role`}><option value="customer">Customer</option><option value="admin">Admin</option></select>{roleDrafts[customer.id] && roleDrafts[customer.id] !== customer.role && <div className="admin-status-editor__actions"><ConfirmAlertDialog trigger={<button type="button">Apply</button>} title={`Change ${customer.name || customer.email || 'this customer'} to ${roleDrafts[customer.id]}?`} description={roleDrafts[customer.id] === 'admin' ? 'Admins can access customer, order, payment, catalogue, discount, and content management tools.' : 'Removing admin access prevents this account from opening the operations console.'} confirmLabel="Change role" destructive={roleDrafts[customer.id] !== 'admin'} onConfirm={() => updateCustomer(customer, { role: roleDrafts[customer.id] })} /><button type="button" onClick={() => setRoleDrafts((current) => { const next = { ...current }; delete next[customer.id]; return next; })}>Discard</button></div>}</div></td>
               </tr>;
             })}
           </tbody></table></div> : <AdminEmpty icon={Users}>No customers match this view.</AdminEmpty>}

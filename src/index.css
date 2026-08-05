@@ -3044,6 +3044,11 @@ input[readonly] {
   background: var(--color-panel);
 }
 
+.home-hero__variant-wrap {
+  position: absolute;
+  inset: 0;
+}
+
 .home-hero__asset {
   position: absolute;
   inset: 0;

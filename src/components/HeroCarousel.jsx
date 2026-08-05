@@ -8,7 +8,21 @@ import { Link } from 'react-router-dom';
 const SLIDE_MS = 5200;
 const PHOTO_HOLD_MS = 700;
 const VIDEO_START_TIMEOUT_MS = 2400;
+const VARIANT_ROTATE_MS = 550;
 const INITIAL_VIDEO_STATE = { slide: -1, complete: false, failed: false };
+
+// Same seven toppings shown on SignatureLoafSpotlight — after its clip
+// finishes, the banana bread slide flips through all of them once before
+// handing off to the next hero slide.
+const BANANA_BREAD_VARIANTS = [
+  { label: 'Plain', image: '/uploads/aries11-bananabread-topping-plain.png' },
+  { label: 'Oreo', image: '/uploads/aries11-bananabread-topping-oreo.png' },
+  { label: 'Double Chocolate', image: '/uploads/aries11-bananabread-topping-doublechocolate.png' },
+  { label: 'Coconut Flakes', image: '/uploads/aries11-bananabread-topping-coconutflakes.png' },
+  { label: 'Nuts Crunch', image: '/uploads/aries11-bananabread-topping-nutscrunch.png' },
+  { label: 'Biscoff', image: '/uploads/aries11-bananabread-topping-biscoff.png' },
+  { label: 'Raisins', image: '/uploads/aries11-bananabread-topping-raisins.png' },
+];
 
 // Three slides only — brand first, then the two strongest configurable
 // products. Brownies/pastries/parfait get their own scroll moment in
@@ -34,6 +48,7 @@ const HERO_SLIDES = [
     copy: 'Baked fresh to order with your choice of seven toppings, from Biscoff to nuts crunch.',
     image: '/uploads/hero-carousel/banana-bread-hold.webp',
     video: '/uploads/hero-carousel/banana-bread.mp4',
+    variants: BANANA_BREAD_VARIANTS,
     objectPosition: 'center 54%',
     mobileObjectPosition: 'center 42%',
     href: '/product/signature-banana-bread',
@@ -62,12 +77,18 @@ export default function HeroCarousel() {
   const [pageVisible, setPageVisible] = useState(true);
   const [paused, setPaused] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
+  const [variantIndex, setVariantIndex] = useState(0);
   const saveData = typeof navigator !== 'undefined' && Boolean(navigator.connection?.saveData);
   const slide = HERO_SLIDES[active];
   const carouselRunning = pageVisible && !paused;
   const videoComplete = videoState.slide === active && videoState.complete;
   const videoFailed = videoState.slide === active && videoState.failed;
   const canPlayVideo = Boolean(slide.video && !reduceMotion && !saveData && !videoComplete);
+  // Only rotate through variant stills when motion/data allow it — reduced-
+  // motion and save-data visitors get the plain photo-hold-then-advance
+  // behavior every other slide already uses.
+  const rotationEligible = Boolean(slide.variants?.length) && !reduceMotion && !saveData;
+  const activeVariant = rotationEligible ? slide.variants[variantIndex] : null;
 
   const attachVideo = useCallback((video) => {
     videoRef.current = video;
@@ -86,14 +107,33 @@ export default function HeroCarousel() {
 
   useEffect(() => {
     if (!carouselRunning || canPlayVideo) return undefined;
+    if (rotationEligible) return undefined; // the variant-rotation effect below owns advancing this slide
     const completedVideo = Boolean(slide.video && !reduceMotion && videoComplete && !videoFailed);
     const timer = window.setTimeout(() => {
       setVideoState(INITIAL_VIDEO_STATE);
       setVideoProgress(0);
+      setVariantIndex(0);
       setActive((index) => (index + 1) % HERO_SLIDES.length);
     }, completedVideo ? PHOTO_HOLD_MS : SLIDE_MS);
     return () => window.clearTimeout(timer);
-  }, [active, canPlayVideo, carouselRunning, reduceMotion, slide.video, videoComplete, videoFailed]);
+  }, [active, canPlayVideo, carouselRunning, reduceMotion, rotationEligible, slide.video, videoComplete, videoFailed]);
+
+  useEffect(() => {
+    if (!carouselRunning || !rotationEligible || canPlayVideo) return undefined;
+    const timer = window.setTimeout(() => {
+      setVariantIndex((current) => {
+        const next = current + 1;
+        if (next >= slide.variants.length) {
+          setVideoState(INITIAL_VIDEO_STATE);
+          setVideoProgress(0);
+          setActive((index) => (index + 1) % HERO_SLIDES.length);
+          return 0;
+        }
+        return next;
+      });
+    }, VARIANT_ROTATE_MS);
+    return () => window.clearTimeout(timer);
+  }, [canPlayVideo, carouselRunning, rotationEligible, slide, variantIndex]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -134,6 +174,7 @@ export default function HeroCarousel() {
     if (index === active) return;
     setVideoState(INITIAL_VIDEO_STATE);
     setVideoProgress(0);
+    setVariantIndex(0);
     setActive(index);
   }
 
@@ -183,6 +224,25 @@ export default function HeroCarousel() {
                 onError={() => setVideoState({ slide: active, complete: true, failed: true })}
                 className="home-hero__asset home-hero__video"
               />
+            ) : activeVariant ? (
+              <AnimatePresence initial={false}>
+                <motion.div
+                  key={activeVariant.image}
+                  className="home-hero__variant-wrap"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                >
+                  <Image
+                    src={activeVariant.image}
+                    alt=""
+                    fill
+                    sizes="100vw"
+                    className="home-hero__asset home-hero__image"
+                  />
+                </motion.div>
+              </AnimatePresence>
             ) : (
               <Image
                 src={slide.image}
@@ -239,6 +299,11 @@ export default function HeroCarousel() {
                       <span
                         className="home-hero__tab-fill"
                         style={{ transform: `scaleX(${videoProgress})` }}
+                      />
+                    ) : rotationEligible ? (
+                      <span
+                        className="home-hero__tab-fill"
+                        style={{ transform: `scaleX(${(variantIndex + 1) / slide.variants.length})`, transition: 'transform 200ms ease' }}
                       />
                     ) : videoComplete && !videoFailed ? (
                       <span className="home-hero__tab-fill" style={{ transform: 'scaleX(1)' }} />

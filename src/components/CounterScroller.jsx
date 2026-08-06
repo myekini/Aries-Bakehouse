@@ -1,8 +1,44 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { motion, useMotionValueEvent, useReducedMotion, useScroll, useTransform } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
+import { motion, useMotionValue, useMotionValueEvent, useReducedMotion, useTransform } from 'framer-motion';
 import { Link } from 'react-router-dom';
+
+// This page also runs Lenis (see SmoothScroll.jsx) for smooth-scroll. Lenis
+// and framer-motion's own useScroll don't reconcile cleanly on this page —
+// in production, the section's fade-out keyframes would visibly reverse and
+// climb back to opacity 1 well past their intended range, leaving two
+// products' images stacked on top of each other. Tracking progress
+// ourselves off a plain scroll/resize listener (identical 'start start' ->
+// 'end end' math) sidesteps whatever the two systems disagree about.
+function useManualScrollProgress(trackRef) {
+  const progress = useMotionValue(0);
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return undefined;
+    let frame = null;
+    const update = () => {
+      frame = null;
+      const rect = el.getBoundingClientRect();
+      const total = rect.height - window.innerHeight;
+      const raw = total > 0 ? -rect.top / total : 0;
+      progress.set(Math.min(1, Math.max(0, raw)));
+    };
+    const onScroll = () => {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+  }, [trackRef, progress]);
+  return progress;
+}
 
 // Scroll-scrubbed product showcase: the media panel pins while each
 // product's poster frame yields to its own footage as you scroll it into
@@ -91,7 +127,7 @@ export default function CounterScroller() {
   const reduceMotion = useReducedMotion();
   const [active, setActive] = useState(0);
   const saveData = typeof navigator !== 'undefined' && Boolean(navigator.connection?.saveData);
-  const { scrollYProgress } = useScroll({ target: trackRef, offset: ['start start', 'end end'] });
+  const scrollYProgress = useManualScrollProgress(trackRef);
 
   useMotionValueEvent(scrollYProgress, 'change', (value) => {
     const next = Math.min(SHOWCASE.length - 1, Math.floor(value * SHOWCASE.length));

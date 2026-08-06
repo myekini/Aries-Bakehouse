@@ -7,6 +7,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import PillSelector from '../components/PillSelector.jsx';
 import SwatchPicker from '../components/SwatchPicker.jsx';
 import ProductCard from '../components/ProductCard.jsx';
+import BrowniesHeroQA from '../components/BrowniesHeroQA.jsx'; // DEV/QA ONLY — see that file's header before removing
 import { productImageFit, productImagePadding } from '../lib/media.js';
 import { trackEvent } from '../lib/analytics.js';
 import {
@@ -451,6 +452,8 @@ function ConfiguredProduct({ product, rules, makeConfig }) {
         onAddToCart={() => addToCart(buildItem(), { openDrawer: true })}
         onBuyNow={buyNow}
       />
+      {/* DEV/QA ONLY — remove this block (and BrowniesHeroQA.jsx) once a hero treatment is chosen */}
+      {product.slug === 'brownie-box' && <BrowniesHeroQA />}
       <ProductReviews slug={product.slug} />
       <Related slug={product.slug} />
     </div>

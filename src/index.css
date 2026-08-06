@@ -3422,6 +3422,113 @@ input[readonly] {
   }
 }
 
+/* ============================================================
+   DEV/QA ONLY — Brownie Box hero-treatment comparison.
+   Remove this whole block alongside BrowniesHeroQA.jsx once a
+   version is chosen; not meant to reach real customers.
+   ============================================================ */
+.qa-brownies-hero {
+  padding: var(--space-7) 0;
+}
+
+.qa-brownies-hero__banner {
+  background: var(--color-error);
+  color: var(--color-white);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: var(--space-5);
+}
+
+.qa-brownies-hero__banner code {
+  font-family: monospace;
+  background: rgba(0,0,0,0.2);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.qa-brownies-hero__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-5);
+}
+
+.qa-brownies-hero__header h2 {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.qa-brownies-hero__toggle {
+  display: inline-flex;
+  border: 1.5px solid var(--color-choc);
+  border-radius: var(--radius-pill);
+  padding: 3px;
+  gap: 3px;
+}
+
+.qa-brownies-hero__toggle button {
+  border: 0;
+  background: transparent;
+  color: var(--color-choc);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 8px 18px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.qa-brownies-hero__toggle button.is-active {
+  background: var(--color-choc);
+  color: var(--color-white);
+}
+
+.qa-brownies-hero__stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-height: 80svh;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-white);
+  box-shadow: 0 2px 6px rgba(50,26,23,0.08);
+}
+
+.qa-brownies-hero__stage img,
+.qa-brownies-hero__stage video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.qa-brownies-hero__scroll-track {
+  /* Scroll runway the crossfade maps to — short and deliberate, not a
+     full showcase section. */
+  height: 200svh;
+}
+
+.qa-brownies-hero__pin {
+  position: sticky;
+  top: 10svh;
+}
+
+@media (max-width: 767px) {
+  .qa-brownies-hero__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .qa-brownies-hero__stage {
+    max-height: 50svh;
+  }
+}
+
 .ordering-works {
   padding: var(--space-8) 0;
 }
